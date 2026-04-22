@@ -22,7 +22,7 @@ Longer term, the same framework could extend into images, audio, video, 3D, text
 
 - **[React Flow](https://reactflow.dev/)** — node editor
 - **[DuckDB-wasm](https://duckdb.org/)** — in-browser SQL
-- **React** with next.js — frontend
+- **React** — frontend
 - **Cloudflare Pages** — for the frontend
 -  **Cloudflare Workers** — for the backend with [Hono](hono.dev)
 
