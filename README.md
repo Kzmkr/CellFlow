@@ -44,6 +44,10 @@ Longer term, the same framework could extend into images, audio, video, 3D, text
 ## Backend 
 Minimal only for auth and saving workflows (Cloudflare D1)
 
+## cd/ci
+On push to main 
+https://ba79c4c0.cellflow.pages.dev/
+
 
 ## Potential future improvements
 - **Live connection** remote db, json api
