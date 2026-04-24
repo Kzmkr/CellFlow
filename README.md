@@ -45,8 +45,17 @@ Longer term, the same framework could extend into images, audio, video, 3D, text
 Minimal only for auth and saving workflows (Cloudflare D1)
 
 ## cd/ci
-On push to main 
-https://ba79c4c0.cellflow.pages.dev/
+On push 
+main https://cellflow.pages.dev/
+or
+other braches https://{branch-name}.cellflow.pages.dev/
+
+get build to static files with 
+
+```console
+npm run build
+```
+
 
 
 ## Potential future improvements
