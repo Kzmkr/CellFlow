@@ -1,34 +1,36 @@
+import { Routes, Route } from "react-router-dom"
+import { useEffect, useState } from "react"
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
-} from "@/components/ui/resizable";
-import { DataTable } from "@/components/data-table";
-import { AppMenubar } from "@/components/app-menubar";
-import { ActionGrid } from "@/components/action-grid";
-import { PropertiesPanel } from "@/components/properties-panel";
-import Flow from "@/components/flow";
-import { useEffect, useState } from "react";
+} from "@/components/ui/resizable"
+import { DataTable } from "@/components/data-table"
+import { AppMenubar } from "@/components/app-menubar"
+import { ActionGrid } from "@/components/action-grid"
+import { PropertiesPanel } from "@/components/properties-panel"
+import Flow from "@/components/flow"
+import LoginPage from "@/pages/login"
 
-export default function App() {
-  const [showNodes, setShowNodes] = useState(true);
-  const [showProperties, setShowProperties] = useState(true);
-  const [showTable, setShowTable] = useState(true);
+function EditorLayout() {
+  const [showNodes, setShowNodes] = useState(true)
+  const [showProperties, setShowProperties] = useState(true)
+  const [showTable, setShowTable] = useState(true)
 
   useEffect(() => {
     function onToggle(e: Event) {
-      const ev = e as CustomEvent<{ panel: string; value: boolean }>;
-      const { panel, value } = ev.detail ?? {};
-      if (panel === "nodes") setShowNodes(Boolean(value));
-      else if (panel === "properties") setShowProperties(Boolean(value));
-      else if (panel === "table") setShowTable(Boolean(value));
+      const ev = e as CustomEvent<{ panel: string; value: boolean }>
+      const { panel, value } = ev.detail ?? {}
+      if (panel === "nodes") setShowNodes(Boolean(value))
+      else if (panel === "properties") setShowProperties(Boolean(value))
+      else if (panel === "table") setShowTable(Boolean(value))
     }
-    window.addEventListener("ui:toggle-panel", onToggle as EventListener);
+    window.addEventListener("ui:toggle-panel", onToggle as EventListener)
     return () =>
-      window.removeEventListener("ui:toggle-panel", onToggle as EventListener);
-  }, []);
+      window.removeEventListener("ui:toggle-panel", onToggle as EventListener)
+  }, [])
 
-  const bottomVisible = showNodes || showTable;
+  const bottomVisible = showNodes || showTable
 
   return (
     <ResizablePanelGroup direction="vertical" className="min-h-screen w-full">
@@ -53,7 +55,6 @@ export default function App() {
       </ResizablePanel>
 
       {bottomVisible && <ResizableHandle withHandle />}
-
       {bottomVisible && (
         <ResizablePanel minSize={3}>
           <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -74,5 +75,14 @@ export default function App() {
         </ResizablePanel>
       )}
     </ResizablePanelGroup>
-  );
+  )
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/*" element={<EditorLayout />} />
+    </Routes>
+  )
 }
