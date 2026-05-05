@@ -1,5 +1,8 @@
 "use client"
 
+import { PlayIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 import {
   Menubar,
   MenubarContent,
@@ -22,9 +25,14 @@ export function AppMenubar() {
   const [showActivityBar, setShowActivityBar] = useState(false)
   const [showPanel, setShowPanel] = useState(false)
 
+  function handleRun() {
+    window.dispatchEvent(new CustomEvent("pipeline:run"))
+  }
+
   return (
     <div className="shrink-0 bg-muted/30">
-      <Menubar className="rounded-none border-x-0 border-t-0">
+      <div className="flex items-center gap-2 border-b px-2">
+        <Menubar className="flex-1 rounded-none border-0">
         <MenubarMenu>
           <MenubarTrigger>File</MenubarTrigger>
           <MenubarContent>
@@ -33,6 +41,10 @@ export function AppMenubar() {
             </MenubarItem>
             <MenubarItem>
               New Window <MenubarShortcut>Ctrl+N</MenubarShortcut>
+            </MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem onSelect={handleRun}>
+              Run <MenubarShortcut>Ctrl+Enter</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarSub>
@@ -110,7 +122,12 @@ export function AppMenubar() {
             <MenubarItem>About</MenubarItem>
           </MenubarContent>
         </MenubarMenu>
-      </Menubar>
+        </Menubar>
+        <Button size="sm" onClick={handleRun}>
+          <PlayIcon data-icon="inline-start" />
+          Run
+        </Button>
+      </div>
     </div>
   )
 }

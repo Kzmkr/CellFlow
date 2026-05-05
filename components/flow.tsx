@@ -1,54 +1,52 @@
-import { useState, useCallback } from 'react';
+import { useEffect } from "react";
 
-import {
-  ReactFlow,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
-  type Node,
-  type Edge,
-  type NodeChange,
-  type EdgeChange,
-  type Connection,
-} from '@xyflow/react';
- 
-const initialNodes: Node[] = [
-  { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Node 1' } },
-  { id: 'n2', position: { x: 0, y: 100 }, data: { label: 'Node 2' } },
-];
-const initialEdges: Edge[] = [{ id: 'n1-n2', source: 'n1', target: 'n2' }];
- 
+import { Background, Controls, MiniMap, ReactFlow, type NodeTypes } from "@xyflow/react";
+
+import { RegistryNode } from "@/components/nodes/registry-node";
+import { useFlowStore } from "@/lib/flow-store";
+import { useNodeAttributeStore } from "@/lib/node-attribute-store";
+
+const nodeTypes = {
+  registryNode: RegistryNode,
+} satisfies NodeTypes;
+
 export default function Flow() {
-  const [nodes, setNodes] = useState<Node[]>(initialNodes);
-  const [edges, setEdges] = useState<Edge[]>(initialEdges);
- 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) =>
-      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
-    [],
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const onNodesChange = useFlowStore((state) => state.onNodesChange);
+  const onEdgesChange = useFlowStore((state) => state.onEdgesChange);
+  const onConnect = useFlowStore((state) => state.onConnect);
+  const selectNode = useFlowStore((state) => state.selectNode);
+
+  const ensureNodeDefaults = useNodeAttributeStore(
+    (state) => state.ensureNodeDefaults,
   );
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
-    [],
-  );
-  const onConnect = useCallback(
-    (params: Connection) =>
-      setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
-    [],
-  );
- 
+
+  useEffect(() => {
+    for (const node of nodes) {
+      ensureNodeDefaults(node.id, node.data.kind);
+    }
+  }, [nodes, ensureNodeDefaults]);
+
   return (
     <div className="h-full w-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onSelectionChange={({ nodes: selectedNodes }) => {
+          selectNode(selectedNodes[0]?.id ?? null);
+        }}
         fitView
         className="h-full w-full"
-      />
+      >
+        <Background gap={24} size={1} />
+        <MiniMap zoomable pannable />
+        <Controls />
+      </ReactFlow>
     </div>
   );
 }
