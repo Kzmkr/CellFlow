@@ -1,3 +1,4 @@
+import { Routes, Route } from "react-router-dom"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -8,8 +9,9 @@ import { AppMenubar } from "@/components/app-menubar"
 import { ActionGrid } from "@/components/action-grid"
 import { PropertiesPanel } from "@/components/properties-panel"
 import Flow from "@/components/flow"
+import LoginPage from "@/pages/login"
 
-export default function App() {
+function EditorLayout() {
   return (
     <ResizablePanelGroup direction="vertical" className="min-h-screen w-full">
 
@@ -20,7 +22,6 @@ export default function App() {
             <div className="flex h-full flex-col">
               <AppMenubar />
               <div className="flex-1 min-h-0">
-                
                 <Flow />
               </div>
             </div>
@@ -30,23 +31,32 @@ export default function App() {
           <ResizablePanel minSize={10}>
             <PropertiesPanel />
           </ResizablePanel>
-          
+
         </ResizablePanelGroup>
       </ResizablePanel>
 
       <ResizableHandle withHandle />
-      <ResizablePanel  minSize={3}>
+      <ResizablePanel minSize={3}>
         <ResizablePanelGroup direction="horizontal" className="h-full">
           <ResizablePanel defaultSize={20} minSize={10}>
             <ActionGrid />
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel  minSize={10}>
+          <ResizablePanel minSize={10}>
             <DataTable />
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>
 
     </ResizablePanelGroup>
+  )
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/*" element={<EditorLayout />} />
+    </Routes>
   )
 }
