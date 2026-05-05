@@ -1,6 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-import { Background, Controls, MiniMap, ReactFlow, type NodeTypes } from "@xyflow/react";
+import {
+  Background,
+  Controls,
+  MiniMap,
+  ReactFlow,
+  type NodeTypes,
+  type ColorMode,
+} from "@xyflow/react";
 
 import { RegistryNode } from "@/components/nodes/registry-node";
 import { useFlowStore } from "@/lib/flow-store";
