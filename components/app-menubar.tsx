@@ -21,9 +21,9 @@ import {
 import { useEffect, useState } from "react";
 
 export function AppMenubar() {
-  const [showStatusBar, setShowStatusBar] = useState(true);
-  const [showActivityBar, setShowActivityBar] = useState(false);
-  const [showPanel, setShowPanel] = useState(false);
+  const [showNodes, setShowNodes] = useState(true);
+  const [showProperties, setShowProperties] = useState(true);
+  const [showTable, setShowTable] = useState(true);
 
   function handleRun() {
     window.dispatchEvent(new CustomEvent("pipeline:run"));
@@ -49,6 +49,15 @@ export function AppMenubar() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   });
+
+  function dispatchToggle(
+    panel: "nodes" | "properties" | "table",
+    value: boolean,
+  ) {
+    window.dispatchEvent(
+      new CustomEvent("ui:toggle-panel", { detail: { panel, value } }),
+    );
+  }
 
   return (
     <div className="shrink-0 bg-muted/30">
@@ -107,33 +116,50 @@ export function AppMenubar() {
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
+
           <MenubarMenu>
             <MenubarTrigger>View</MenubarTrigger>
             <MenubarContent>
               <MenubarCheckboxItem
-                checked={showStatusBar}
-                onCheckedChange={setShowStatusBar}
+                checked={showNodes}
+                onCheckedChange={(val) => {
+                  const checked = Boolean(val);
+                  setShowNodes(checked);
+                  dispatchToggle("nodes", checked);
+                }}
               >
-                Status Bar
+                Nodes
               </MenubarCheckboxItem>
+
               <MenubarCheckboxItem
-                checked={showActivityBar}
-                onCheckedChange={setShowActivityBar}
+                checked={showProperties}
+                onCheckedChange={(val) => {
+                  const checked = Boolean(val);
+                  setShowProperties(checked);
+                  dispatchToggle("properties", checked);
+                }}
               >
-                Activity Bar
+                Properties
               </MenubarCheckboxItem>
+
               <MenubarCheckboxItem
-                checked={showPanel}
-                onCheckedChange={setShowPanel}
+                checked={showTable}
+                onCheckedChange={(val) => {
+                  const checked = Boolean(val);
+                  setShowTable(checked);
+                  dispatchToggle("table", checked);
+                }}
               >
-                Panel
+                Table
               </MenubarCheckboxItem>
+
               <MenubarSeparator />
               <MenubarItem onClick={toggleFullscreen}>
                 Toggle Fullscreen <MenubarShortcut>F11</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
+
           <MenubarMenu>
             <MenubarTrigger>Help</MenubarTrigger>
             <MenubarContent>
