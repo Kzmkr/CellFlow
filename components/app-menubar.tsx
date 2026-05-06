@@ -19,11 +19,13 @@ import {
   MenubarRadioItem,
 } from "@/components/ui/menubar";
 import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 
 export function AppMenubar() {
   const [showNodes, setShowNodes] = useState(true);
   const [showProperties, setShowProperties] = useState(true);
   const [showTable, setShowTable] = useState(true);
+  const { resolvedTheme, setTheme } = useTheme();
 
   function handleRun() {
     window.dispatchEvent(new CustomEvent("pipeline:run"));
@@ -154,6 +156,17 @@ export function AppMenubar() {
               </MenubarCheckboxItem>
 
               <MenubarSeparator />
+
+              <MenubarCheckboxItem
+                checked={resolvedTheme == "dark"}
+                onCheckedChange={(val) => {
+                  const checked = Boolean(val);
+                  setTheme(checked ? "dark" : "light");
+                }}
+              >
+                Dark Mode <MenubarShortcut>D</MenubarShortcut>
+              </MenubarCheckboxItem>
+
               <MenubarItem onClick={toggleFullscreen}>
                 Toggle Fullscreen <MenubarShortcut>F11</MenubarShortcut>
               </MenubarItem>

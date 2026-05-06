@@ -9,6 +9,8 @@ import {
   type ColorMode,
 } from "@xyflow/react";
 
+import { useTheme } from "next-themes";
+
 import { RegistryNode } from "@/components/nodes/registry-node";
 import { useFlowStore } from "@/lib/flow-store";
 import { useNodeAttributeStore } from "@/lib/node-attribute-store";
@@ -18,6 +20,25 @@ const nodeTypes = {
 } satisfies NodeTypes;
 
 export default function Flow() {
+  const { resolvedTheme } = useTheme();
+  const flowColorMode: ColorMode = resolvedTheme == "dark" ? "dark" : "light";
+
+  useEffect(() => {
+    // Find the root .react-flow element that the library renders.
+    // It may not exist immediately on first render, so toggle when it appears.
+    const el = document.querySelector(".react-flow");
+    if (!el) return;
+
+    if (resolvedTheme === "dark") el.classList.add("dark");
+    else el.classList.remove("dark");
+
+    // keep in sync on cleanup if element is removed
+    return () => {
+      if (!el) return;
+      el.classList.remove("dark");
+    };
+  }, [resolvedTheme]);
+
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
   const onNodesChange = useFlowStore((state) => state.onNodesChange);
