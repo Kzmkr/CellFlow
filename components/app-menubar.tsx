@@ -183,6 +183,11 @@ export function AppMenubar() {
             </MenubarContent>
           </MenubarMenu>
         </Menubar>
+
+        <Button asChild size="sm" variant="outline" aria-label="Sign in">
+          <a href="/login">Sign In</a>
+        </Button>
+
         <Button size="sm" onClick={handleRun}>
           <PlayIcon data-icon="inline-start" />
           Run
