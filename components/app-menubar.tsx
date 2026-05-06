@@ -123,17 +123,6 @@ export function AppMenubar() {
             <MenubarTrigger>View</MenubarTrigger>
             <MenubarContent>
               <MenubarCheckboxItem
-                checked={showNodes}
-                onCheckedChange={(val) => {
-                  const checked = Boolean(val);
-                  setShowNodes(checked);
-                  dispatchToggle("nodes", checked);
-                }}
-              >
-                Nodes
-              </MenubarCheckboxItem>
-
-              <MenubarCheckboxItem
                 checked={showProperties}
                 onCheckedChange={(val) => {
                   const checked = Boolean(val);
@@ -142,6 +131,17 @@ export function AppMenubar() {
                 }}
               >
                 Properties
+              </MenubarCheckboxItem>
+
+              <MenubarCheckboxItem
+                checked={showNodes}
+                onCheckedChange={(val) => {
+                  const checked = Boolean(val);
+                  setShowNodes(checked);
+                  dispatchToggle("nodes", checked);
+                }}
+              >
+                Nodes
               </MenubarCheckboxItem>
 
               <MenubarCheckboxItem
