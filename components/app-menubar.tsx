@@ -1,10 +1,13 @@
 "use client";
 
 import { PlayIcon } from "lucide-react";
+import { useEffect } from "react";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 import {
   Menubar,
+  MenubarCheckboxItem,
   MenubarContent,
   MenubarItem,
   MenubarMenu,
@@ -14,17 +17,26 @@ import {
   MenubarSubContent,
   MenubarSubTrigger,
   MenubarTrigger,
-  MenubarCheckboxItem,
-  MenubarRadioGroup,
-  MenubarRadioItem,
 } from "@/components/ui/menubar";
-import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
 
-export function AppMenubar() {
-  const [showNodes, setShowNodes] = useState(true);
-  const [showProperties, setShowProperties] = useState(true);
-  const [showTable, setShowTable] = useState(true);
+type AppMenubarProps = {
+  showNodes: boolean;
+  showProperties: boolean;
+  showTable: boolean;
+  onNewTab: () => void;
+  onTogglePanel: (
+    panel: "nodes" | "properties" | "table",
+    value: boolean,
+  ) => void;
+};
+
+export function AppMenubar({
+  showNodes,
+  showProperties,
+  showTable,
+  onNewTab,
+  onTogglePanel,
+}: AppMenubarProps) {
   const { resolvedTheme, setTheme } = useTheme();
 
   function handleRun() {
@@ -52,15 +64,6 @@ export function AppMenubar() {
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
-  function dispatchToggle(
-    panel: "nodes" | "properties" | "table",
-    value: boolean,
-  ) {
-    window.dispatchEvent(
-      new CustomEvent("ui:toggle-panel", { detail: { panel, value } }),
-    );
-  }
-
   return (
     <div className="shrink-0 bg-muted/30">
       <div className="flex items-center gap-2 border-b px-2">
@@ -68,11 +71,8 @@ export function AppMenubar() {
           <MenubarMenu>
             <MenubarTrigger>File</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>
+              <MenubarItem onSelect={onNewTab}>
                 New Tab <MenubarShortcut>Ctrl+T</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem>
-                New Window <MenubarShortcut>Ctrl+N</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onSelect={handleRun}>
@@ -125,9 +125,7 @@ export function AppMenubar() {
               <MenubarCheckboxItem
                 checked={showProperties}
                 onCheckedChange={(val) => {
-                  const checked = Boolean(val);
-                  setShowProperties(checked);
-                  dispatchToggle("properties", checked);
+                  onTogglePanel("properties", Boolean(val));
                 }}
               >
                 Properties
@@ -136,9 +134,7 @@ export function AppMenubar() {
               <MenubarCheckboxItem
                 checked={showNodes}
                 onCheckedChange={(val) => {
-                  const checked = Boolean(val);
-                  setShowNodes(checked);
-                  dispatchToggle("nodes", checked);
+                  onTogglePanel("nodes", Boolean(val));
                 }}
               >
                 Nodes
@@ -147,9 +143,7 @@ export function AppMenubar() {
               <MenubarCheckboxItem
                 checked={showTable}
                 onCheckedChange={(val) => {
-                  const checked = Boolean(val);
-                  setShowTable(checked);
-                  dispatchToggle("table", checked);
+                  onTogglePanel("table", Boolean(val));
                 }}
               >
                 Table
@@ -160,8 +154,7 @@ export function AppMenubar() {
               <MenubarCheckboxItem
                 checked={resolvedTheme == "dark"}
                 onCheckedChange={(val) => {
-                  const checked = Boolean(val);
-                  setTheme(checked ? "dark" : "light");
+                  setTheme(Boolean(val) ? "dark" : "light");
                 }}
               >
                 Dark Mode <MenubarShortcut>D</MenubarShortcut>
