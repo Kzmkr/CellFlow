@@ -85,19 +85,6 @@ export function AppMenubar({
               <MenubarItem onSelect={handleRun}>
                 Run <MenubarShortcut>Ctrl+Enter</MenubarShortcut>
               </MenubarItem>
-              <MenubarSeparator />
-              <MenubarSub>
-                <MenubarSubTrigger>Share</MenubarSubTrigger>
-                <MenubarSubContent>
-                  <MenubarItem>Email Link</MenubarItem>
-                  <MenubarItem>Messages</MenubarItem>
-                  <MenubarItem>Notes</MenubarItem>
-                </MenubarSubContent>
-              </MenubarSub>
-              <MenubarSeparator />
-              <MenubarItem>
-                Print <MenubarShortcut>Ctrl+P</MenubarShortcut>
-              </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
@@ -118,10 +105,6 @@ export function AppMenubar({
               </MenubarItem>
               <MenubarItem>
                 Paste <MenubarShortcut>Ctrl+V</MenubarShortcut>
-              </MenubarItem>
-              <MenubarSeparator />
-              <MenubarItem>
-                Select All <MenubarShortcut>Ctrl+A</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
@@ -177,7 +160,6 @@ export function AppMenubar({
             <MenubarTrigger>Help</MenubarTrigger>
             <MenubarContent>
               <MenubarItem>Documentation</MenubarItem>
-              <MenubarItem>Release Notes</MenubarItem>
               <MenubarSeparator />
               <MenubarItem>About</MenubarItem>
             </MenubarContent>
