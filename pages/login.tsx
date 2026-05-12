@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 import { FaGithub } from "react-icons/fa"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,7 +19,75 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 
+const API = "https://cellflow-backend.kozma-kristof14.workers.dev/"
+
+async function getCsrf(): Promise<string> {
+  const res = await fetch(`${API}/api/auth/csrf`, { credentials: "include" })
+  const { csrfToken } = await res.json()
+  return csrfToken
+}
+
+function submitAuthForm(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form")
+  form.method = "POST"
+  form.action = action
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input")
+    input.type = "hidden"
+    input.name = name
+    input.value = value
+    form.appendChild(input)
+  }
+  document.body.appendChild(form)
+  form.submit()
+}
+
+async function signInWithGitHub() {
+  const csrfToken = await getCsrf()
+  submitAuthForm(`${API}/api/auth/signin/github`, { csrfToken })
+}
+
 export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const err = params.get("error")
+    if (err === "CredentialsSignin") {
+      setError("Invalid email or password.")
+    } else if (err) {
+      setError("Sign in failed. Please try again.")
+    }
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try {
+      const csrfToken = await getCsrf()
+      const body = new URLSearchParams({ csrfToken, email, password, callbackUrl: window.location.origin + "/" })
+      const res = await fetch(`${API}/api/auth/callback/credentials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+        credentials: "include",
+      })
+      if (res.url.startsWith(window.location.origin)) {
+        window.location.href = "/"
+        return
+      }
+      setError("Invalid email or password.")
+    } catch {
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
@@ -27,66 +97,83 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent>
-          <div className="flex flex-col gap-4">
-            <Button variant="outline" className="w-full" type="button">
-              <FaGithub data-icon="inline-start" />
-              Continue with GitHub
-            </Button>
+          <form onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={signInWithGitHub}
+              >
+                <FaGithub data-icon="inline-start" />
+                Continue with GitHub
+              </Button>
 
-            <FieldSeparator>or</FieldSeparator>
+              <FieldSeparator>or</FieldSeparator>
 
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              </Field>
+              {error && (
+                <p className="text-sm text-destructive text-center">{error}</p>
+              )}
 
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
-                    href="#"
-                    className="text-sm text-muted-foreground underline underline-offset-4 hover:text-primary"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                />
-              </Field>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="email">Email</FieldLabel>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </Field>
 
-              <Field orientation="horizontal" className="items-center gap-2">
-                <Checkbox id="remember" />
-                <FieldLabel htmlFor="remember" className="font-normal cursor-pointer">
-                  Remember me
-                </FieldLabel>
-              </Field>
-            </FieldGroup>
+                <Field>
+                  <div className="flex items-center justify-between">
+                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <a
+                      href="#"
+                      className="text-sm text-muted-foreground underline underline-offset-4 hover:text-primary"
+                    >
+                      Forgot password?
+                    </a>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </Field>
 
-            <Button className="w-full" type="submit">
-              Sign in
-            </Button>
-          </div>
+                <Field orientation="horizontal" className="items-center gap-2">
+                  <Checkbox id="remember" />
+                  <FieldLabel htmlFor="remember" className="font-normal cursor-pointer">
+                    Remember me
+                  </FieldLabel>
+                </Field>
+              </FieldGroup>
+
+              <Button className="w-full" type="submit" disabled={loading}>
+                {loading ? "Signing in…" : "Sign in"}
+              </Button>
+            </div>
+          </form>
         </CardContent>
 
         <CardFooter className="justify-center">
           <p className="text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <a
-              href="#"
+            <Link
+              to="/signup"
               className="text-foreground underline underline-offset-4 hover:text-primary"
             >
               Sign up
-            </a>
+            </Link>
           </p>
         </CardFooter>
       </Card>
