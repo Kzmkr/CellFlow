@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { useRef, useState } from "react";
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 
 import {
   ResizablePanelGroup,
@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import { AppMenubar } from "@/components/app-menubar";
+import { EditorTabBar } from "@/components/editor-tab-bar";
 import { ActionGrid } from "@/components/action-grid";
 import { PropertiesPanel } from "@/components/properties-panel";
 import Flow from "@/components/flow";
@@ -175,54 +176,13 @@ function EditorLayout() {
         showTable={activePanels.table}
         onTogglePanel={updateActiveTabPanel}
       />
-      <div className="shrink-0 border-b bg-muted/20 px-2 py-1">
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {tabs.length === 0 && (
-            <div className="flex h-8 items-center rounded-md border border-dashed px-3 text-sm text-muted-foreground">
-              Empty
-            </div>
-          )}
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTabId;
-
-            return (
-              <div
-                key={tab.id}
-                className={cn(
-                  "flex h-8 items-center rounded-md border text-sm",
-                  isActive
-                    ? "border-border bg-background text-foreground"
-                    : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/60",
-                )}
-              >
-                <button
-                  type="button"
-                  className="px-3 text-left"
-                  onClick={() => setActiveTabId(tab.id)}
-                >
-                  {tab.title}
-                </button>
-                <button
-                  type="button"
-                  className="mr-1 rounded p-1 hover:bg-muted"
-                  aria-label={`Close ${tab.title}`}
-                  onClick={() => closeTab(tab.id)}
-                >
-                  <XIcon className="size-3.5" />
-                </button>
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            className="inline-flex size-8 items-center justify-center rounded-md border border-dashed text-muted-foreground hover:bg-muted/60"
-            aria-label="Open new tab"
-            onClick={openTab}
-          >
-            <PlusIcon className="size-4" />
-          </button>
-        </div>
-      </div>
+      <EditorTabBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onSelectTab={setActiveTabId}
+        onCloseTab={closeTab}
+        onOpenTab={openTab}
+      />
       <div className="relative min-h-0 flex-1">
         {tabs.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-background">

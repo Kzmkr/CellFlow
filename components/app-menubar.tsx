@@ -55,14 +55,21 @@ export function AppMenubar({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() == "t") {
+        e.preventDefault();
+        onNewTab();
+        return;
+      }
+
       if (e.key == "F11") {
         e.preventDefault();
         toggleFullscreen();
       }
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
+    document.addEventListener("keydown", onKeyDown, { capture: true });
+    return () =>
+      document.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [onNewTab]);
 
   return (
     <div className="shrink-0 bg-muted/30">
@@ -72,7 +79,7 @@ export function AppMenubar({
             <MenubarTrigger>File</MenubarTrigger>
             <MenubarContent>
               <MenubarItem onSelect={onNewTab}>
-                New Tab <MenubarShortcut>Ctrl+T</MenubarShortcut>
+                New Tab <MenubarShortcut>Ctrl+Shift+T</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onSelect={handleRun}>
