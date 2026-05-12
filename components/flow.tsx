@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import {
   Background,
@@ -22,22 +22,6 @@ const nodeTypes = {
 export default function Flow() {
   const { resolvedTheme } = useTheme();
   const flowColorMode: ColorMode = resolvedTheme == "dark" ? "dark" : "light";
-
-  useEffect(() => {
-    // Find the root .react-flow element that the library renders.
-    // It may not exist immediately on first render, so toggle when it appears.
-    const el = document.querySelector(".react-flow");
-    if (!el) return;
-
-    if (resolvedTheme === "dark") el.classList.add("dark");
-    else el.classList.remove("dark");
-
-    // keep in sync on cleanup if element is removed
-    return () => {
-      if (!el) return;
-      el.classList.remove("dark");
-    };
-  }, [resolvedTheme]);
 
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
@@ -68,6 +52,7 @@ export default function Flow() {
         onSelectionChange={({ nodes: selectedNodes }) => {
           selectNode(selectedNodes[0]?.id ?? null);
         }}
+        colorMode={flowColorMode}
         fitView
         className="h-full w-full"
       >
