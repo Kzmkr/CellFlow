@@ -53,3 +53,4 @@ Minimal only for auth and saving workflows (Cloudflare D1)
 - **Statistics** — regression, correlation, descriptive stats.
 - **LaTeX annotations** on charts (scalar stats rendered as equations).
 - **Export** a workflow as a single standalone HTML file.
+szia
