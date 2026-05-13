@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PlusIcon } from "lucide-react";
 
 import {
@@ -14,8 +14,9 @@ import { EditorTabBar } from "@/components/editor-tab-bar";
 import { ActionGrid } from "@/components/action-grid";
 import { PropertiesPanel } from "@/components/properties-panel";
 import Flow from "@/components/flow";
+import { useUndoRedo } from "@/components/node-handler";
 import LoginPage from "@/pages/login";
-import { FlowStoreProvider } from "@/lib/flow-store";
+import { FlowStoreProvider, useFlowStore } from "@/lib/flow-store";
 import { NodeAttributeStoreProvider } from "@/lib/node-attribute-store";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +48,52 @@ function createTab(tabNumber: number): EditorTab {
   };
 }
 
-function TabWorkspace({ tab, active }: { tab: EditorTab; active: boolean }) {
+function UndoRedoBridge({
+  active,
+  onRegister,
+}: {
+  active: boolean;
+  onRegister: (handlers: { undo: () => void; redo: () => void }) => void;
+}) {
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const isDragging = useFlowStore((state) => state.isDragging);
+  const setNodes = useFlowStore((state) => state.setNodes);
+  const setEdges = useFlowStore((state) => state.setEdges);
+  const setOnSnapshot = useFlowStore((state) => state.setOnSnapshot);
+  const { undo, redo, takeSnapshot } = useUndoRedo(nodes, edges, setNodes, setEdges);
+
+  useEffect(() => {
+    setOnSnapshot(active ? takeSnapshot : undefined);
+  }, [active, setOnSnapshot, takeSnapshot]);
+
+  useEffect(() => {
+    if (!active || isDragging) return;
+    console.log("UndoRedoBridge register", { active, nodes, edges });
+    onRegister({
+      undo: () => {
+        undo();
+        console.log("undo called");
+      },
+      redo: () => {
+        redo();
+        console.log("redo called");
+      },
+    });
+  }, [active, undo, redo, onRegister, nodes, edges, isDragging]);
+
+  return null;
+}
+
+function TabWorkspace({
+  tab,
+  active,
+  onRegisterUndoRedo,
+}: {
+  tab: EditorTab;
+  active: boolean;
+  onRegisterUndoRedo: (handlers: { undo: () => void; redo: () => void }) => void;
+}) {
   const showNodes = tab.panels.nodes;
   const showProperties = tab.panels.properties;
   const showTable = tab.panels.table;
@@ -62,6 +108,7 @@ function TabWorkspace({ tab, active }: { tab: EditorTab; active: boolean }) {
       aria-hidden={!active}
     >
       <FlowStoreProvider>
+        <UndoRedoBridge active={active} onRegister={onRegisterUndoRedo} />
         <NodeAttributeStoreProvider>
           <ResizablePanelGroup direction="vertical" className="h-full w-full">
             <ResizablePanel defaultSize={70} minSize={3}>
@@ -113,6 +160,14 @@ function EditorLayout() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const nextTabNumberRef = useRef(1);
 
+  const [activeUndoRedo, setActiveUndoRedo] = useState<{
+    undo: () => void;
+    redo: () => void;
+  }>({
+    undo: () => {},
+    redo: () => {},
+  });
+
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const activePanels = activeTab?.panels ?? {
     nodes: false,
@@ -121,6 +176,7 @@ function EditorLayout() {
   };
 
   function openTab() {
+    console.log("App openTab called");
     const tab = createTab(nextTabNumberRef.current);
     nextTabNumberRef.current += 1;
     setTabs((currentTabs) => [...currentTabs, tab]);
@@ -128,6 +184,7 @@ function EditorLayout() {
   }
 
   function closeTab(tabId: string) {
+    console.log("App closeTab called", tabId);
     setTabs((currentTabs) => {
       const closingIndex = currentTabs.findIndex((tab) => tab.id === tabId);
       if (closingIndex < 0) {
@@ -154,6 +211,7 @@ function EditorLayout() {
   }
 
   function updateActiveTabPanel(panel: PanelKey, value: boolean) {
+    console.log("App updateActiveTabPanel called", panel, value);
     if (!activeTabId) {
       return;
     }
@@ -171,6 +229,8 @@ function EditorLayout() {
     <div className="flex min-h-screen w-full flex-col">
       <AppMenubar
         onNewTab={openTab}
+        onUndo={activeUndoRedo.undo}
+        onRedo={activeUndoRedo.redo}
         showNodes={activePanels.nodes}
         showProperties={activePanels.properties}
         showTable={activePanels.table}
@@ -197,6 +257,7 @@ function EditorLayout() {
             key={tab.id}
             tab={tab}
             active={tab.id === activeTabId}
+            onRegisterUndoRedo={setActiveUndoRedo}
           />
         ))}
       </div>

@@ -17,6 +17,7 @@ import {
   type Node,
   type NodeChange,
 } from "@xyflow/react";
+import { takeSnapshot, type FlowSnapshot } from "@/components/node-handler";
 
 import type { NodeKind } from "@/lib/node-registry";
 
@@ -30,11 +31,19 @@ type FlowState = {
   nodes: RegistryFlowNode[];
   edges: Edge[];
   selectedNodeId: string | null;
+  lastSnapshot: FlowSnapshot<RegistryFlowNode, Edge> | null;
+  isDragging: boolean;
+  onSnapshot?: () => void;
   addNode: (kind: NodeKind) => void;
   onNodesChange: (changes: NodeChange<RegistryFlowNode>[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
+  onNodeDragStop: (event: any, node: RegistryFlowNode) => void;
+  setNodes: (nodes: RegistryFlowNode[]) => void;
+  setEdges: (edges: Edge[]) => void;
+  applySnapshot: (snapshot: FlowSnapshot<RegistryFlowNode, Edge>) => void;
   selectNode: (nodeId: string | null) => void;
+  setOnSnapshot: (callback: (() => void) | undefined) => void;
 };
 
 export type FlowStore = StoreApi<FlowState>;
@@ -112,8 +121,12 @@ export function createFlowStore(): FlowStore {
     nodes: initialNodes,
     edges: initialEdges,
     selectedNodeId: initialNodes[0]?.id ?? null,
+    lastSnapshot: null,
+    isDragging: false,
     addNode: (kind) => {
       set((state) => {
+        const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+        state.onSnapshot?.();
         const nodeId = getNextNodeId(state.nodes);
         const nextNode: RegistryFlowNode = {
           id: nodeId,
@@ -125,24 +138,66 @@ export function createFlowStore(): FlowStore {
         return {
           nodes: [...state.nodes, nextNode],
           selectedNodeId: nodeId,
+          lastSnapshot: snapshot,
         };
       });
     },
     onNodesChange: (changes) => {
-      set((state) => ({
-        nodes: applyNodeChanges<RegistryFlowNode>(changes, state.nodes),
-      }));
+      set((state) => {
+        // Don't take snapshots for position changes (dragging) - handled in onNodeDragStop
+        const hasPositionChange = changes.some((change) => change.type === 'position');
+
+        const snapshot = hasPositionChange
+          ? state.lastSnapshot
+          : takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+
+        return {
+          nodes: applyNodeChanges<RegistryFlowNode>(changes, state.nodes),
+          lastSnapshot: snapshot,
+          isDragging: hasPositionChange ? true : state.isDragging,
+        };
+      });
     },
     onEdgesChange: (changes) => {
-      set((state) => ({
-        edges: applyEdgeChanges(changes, state.edges),
-      }));
+      set((state) => {
+        const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+        state.onSnapshot?.();
+        return {
+          edges: applyEdgeChanges(changes, state.edges),
+          lastSnapshot: snapshot,
+        };
+      });
     },
     onConnect: (connection) => {
-      set((state) => ({
-        edges: addEdge(connection, state.edges),
-      }));
+      set((state) => {
+        const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+        state.onSnapshot?.();
+        return {
+          edges: addEdge(connection, state.edges),
+          lastSnapshot: snapshot,
+        };
+      });
     },
+    onNodeDragStop: (event, node) => {
+      set((state) => {
+        const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+        state.onSnapshot?.();
+        return {
+          lastSnapshot: snapshot,
+          isDragging: false,
+        };
+      });
+    },
+    setNodes: (nodes) => set({ nodes }),
+    setEdges: (edges) => set({ edges }),
+    applySnapshot: (snapshot) => {
+      set({
+        nodes: snapshot.nodes,
+        edges: snapshot.edges,
+        selectedNodeId: snapshot.nodes[0]?.id ?? null,
+      });
+    },
+    setOnSnapshot: (callback) => set({ onSnapshot: callback }),
     selectNode: (nodeId) => {
       set({ selectedNodeId: nodeId });
     },

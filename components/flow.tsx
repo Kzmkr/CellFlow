@@ -28,6 +28,7 @@ export default function Flow() {
   const onNodesChange = useFlowStore((state) => state.onNodesChange);
   const onEdgesChange = useFlowStore((state) => state.onEdgesChange);
   const onConnect = useFlowStore((state) => state.onConnect);
+  const onNodeDragStop = useFlowStore((state) => state.onNodeDragStop);
   const selectNode = useFlowStore((state) => state.selectNode);
 
   const ensureNodeDefaults = useNodeAttributeStore(
@@ -49,6 +50,7 @@ export default function Flow() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeDragStop={onNodeDragStop}
         onSelectionChange={({ nodes: selectedNodes }) => {
           selectNode(selectedNodes[0]?.id ?? null);
         }}

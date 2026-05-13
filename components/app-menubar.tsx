@@ -24,6 +24,8 @@ type AppMenubarProps = {
   showProperties: boolean;
   showTable: boolean;
   onNewTab: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onTogglePanel: (
     panel: "nodes" | "properties" | "table",
     value: boolean,
@@ -35,6 +37,8 @@ export function AppMenubar({
   showProperties,
   showTable,
   onNewTab,
+  onUndo,
+  onRedo,
   onTogglePanel,
 }: AppMenubarProps) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -90,10 +94,10 @@ export function AppMenubar({
           <MenubarMenu>
             <MenubarTrigger>Edit</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>
+              <MenubarItem onSelect={onUndo}>
                 Undo <MenubarShortcut>Ctrl+Z</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
+              <MenubarItem onSelect={onRedo}>
                 Redo <MenubarShortcut>Ctrl+Y</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
