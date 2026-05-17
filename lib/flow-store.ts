@@ -33,7 +33,7 @@ type FlowState = {
   selectedNodeId: string | null;
   lastSnapshot: FlowSnapshot<RegistryFlowNode, Edge> | null;
   isDragging: boolean;
-  onSnapshot?: () => void;
+  onSnapshot?: (snapshot?: FlowSnapshot<RegistryFlowNode, Edge>) => void;
   addNode: (kind: NodeKind) => void;
   onNodesChange: (changes: NodeChange<RegistryFlowNode>[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -43,7 +43,7 @@ type FlowState = {
   setEdges: (edges: Edge[]) => void;
   applySnapshot: (snapshot: FlowSnapshot<RegistryFlowNode, Edge>) => void;
   selectNode: (nodeId: string | null) => void;
-  setOnSnapshot: (callback: (() => void) | undefined) => void;
+  setOnSnapshot: (callback: ((snapshot?: FlowSnapshot<RegistryFlowNode, Edge>) => void) | undefined) => void;
 };
 
 export type FlowStore = StoreApi<FlowState>;
@@ -126,7 +126,7 @@ export function createFlowStore(): FlowStore {
     addNode: (kind) => {
       set((state) => {
         const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
-        state.onSnapshot?.();
+        state.onSnapshot?.(snapshot);
         const nodeId = getNextNodeId(state.nodes);
         const nextNode: RegistryFlowNode = {
           id: nodeId,
@@ -144,34 +144,72 @@ export function createFlowStore(): FlowStore {
     },
     onNodesChange: (changes) => {
       set((state) => {
-        // Don't take snapshots for position changes (dragging) - handled in onNodeDragStop
         const hasPositionChange = changes.some((change) => change.type === 'position');
+        const hasAddOrRemove = changes.some(
+          (change) => change.type === 'remove' || change.type === 'add',
+        );
 
-        const snapshot = hasPositionChange
-          ? state.lastSnapshot
-          : takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+        const newNodes = applyNodeChanges<RegistryFlowNode>(changes, state.nodes);
 
+        // If this is a drag (position) update, preserve the pre-drag snapshot on first drag step.
+        if (hasPositionChange) {
+          const firstDragStep = !state.isDragging;
+          return {
+            nodes: newNodes,
+            lastSnapshot: firstDragStep
+              ? takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges)
+              : state.lastSnapshot,
+            isDragging: true,
+          };
+        }
+
+        // If nodes were added or removed, record a snapshot for undo/redo.
+        if (hasAddOrRemove) {
+          const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+          state.onSnapshot?.(snapshot);
+          return {
+            nodes: newNodes,
+            lastSnapshot: snapshot,
+            isDragging: false,
+          };
+        }
+
+        // Other node changes (e.g. data edits) do not create an undo snapshot by default.
         return {
-          nodes: applyNodeChanges<RegistryFlowNode>(changes, state.nodes),
-          lastSnapshot: snapshot,
-          isDragging: hasPositionChange ? true : state.isDragging,
+          nodes: newNodes,
+          lastSnapshot: state.lastSnapshot,
+          isDragging: false,
         };
       });
     },
     onEdgesChange: (changes) => {
       set((state) => {
-        const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
-        state.onSnapshot?.();
+        const hasAddOrRemove = changes.some(
+          (change) => change.type === 'remove' || change.type === 'add',
+        );
+
+        const newEdges = applyEdgeChanges(changes, state.edges);
+
+        // Only record snapshots for edge additions/removals (connect/disconnect).
+        if (hasAddOrRemove) {
+          const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+          state.onSnapshot?.(snapshot);
+          return {
+            edges: newEdges,
+            lastSnapshot: snapshot,
+          };
+        }
+
         return {
-          edges: applyEdgeChanges(changes, state.edges),
-          lastSnapshot: snapshot,
+          edges: newEdges,
+          lastSnapshot: state.lastSnapshot,
         };
       });
     },
     onConnect: (connection) => {
       set((state) => {
         const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
-        state.onSnapshot?.();
+        state.onSnapshot?.(snapshot);
         return {
           edges: addEdge(connection, state.edges),
           lastSnapshot: snapshot,
@@ -180,9 +218,11 @@ export function createFlowStore(): FlowStore {
     },
     onNodeDragStop: (event, node) => {
       set((state) => {
-        const snapshot = takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
-        state.onSnapshot?.();
+        const updatedNodes = state.nodes.map((n) => (n.id === node.id ? node : n));
+        const snapshot = state.lastSnapshot ?? takeSnapshot<RegistryFlowNode, Edge>(state.nodes, state.edges);
+        state.onSnapshot?.(snapshot);
         return {
+          nodes: updatedNodes,
           lastSnapshot: snapshot,
           isDragging: false,
         };

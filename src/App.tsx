@@ -60,8 +60,15 @@ function UndoRedoBridge({
   const isDragging = useFlowStore((state) => state.isDragging);
   const setNodes = useFlowStore((state) => state.setNodes);
   const setEdges = useFlowStore((state) => state.setEdges);
+  const applySnapshot = useFlowStore((state) => state.applySnapshot);
   const setOnSnapshot = useFlowStore((state) => state.setOnSnapshot);
-  const { undo, redo, takeSnapshot } = useUndoRedo(nodes, edges, setNodes, setEdges);
+  const { undo, redo, takeSnapshot } = useUndoRedo(
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    applySnapshot,
+  );
 
   useEffect(() => {
     setOnSnapshot(active ? takeSnapshot : undefined);

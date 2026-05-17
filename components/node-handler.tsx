@@ -22,18 +22,31 @@ export function useUndoRedo<TNode extends Node = Node, TEdge extends Edge = Edge
   edges: TEdge[],
   setNodes: (nodes: TNode[]) => void,
   setEdges: (edges: TEdge[]) => void,
+  applySnapshot?: (snapshot: FlowSnapshot<TNode, TEdge>) => void,
 ) {
   // A múlt és a jövő "tornyai" (stack-ek)
   const [past, setPast] = useState<FlowSnapshot<TNode, TEdge>[]>([]);
   const [future, setFuture] = useState<FlowSnapshot<TNode, TEdge>[]>([]);
 
-  const recordSnapshot = useCallback(() => {
-    const snapshot = takeSnapshot<TNode, TEdge>(nodes, edges);
-
-    setPast((prev) => [...prev, snapshot].slice(-50));
-    setFuture([]);
-    return snapshot;
-  }, [nodes, edges]);
+  const recordSnapshot = useCallback(
+    (snapshot?: FlowSnapshot<TNode, TEdge>) => {
+      const actualSnapshot = snapshot ?? takeSnapshot<TNode, TEdge>(nodes, edges);
+      setPast((prev) => {
+        const last = prev[prev.length - 1];
+        try {
+          if (last && JSON.stringify(last) === JSON.stringify(actualSnapshot)) {
+            return prev;
+          }
+        } catch (e) {
+          // if stringify fails, fall back to always pushing
+        }
+        return [...prev, actualSnapshot].slice(-50);
+      });
+      setFuture([]);
+      return actualSnapshot;
+    },
+    [nodes, edges],
+  );
 
   // --- VISSZAVONÁS (Undo) ---
   const undo = useCallback(() => {
@@ -46,11 +59,19 @@ export function useUndoRedo<TNode extends Node = Node, TEdge extends Edge = Edge
     const currentSnapshot = takeSnapshot<TNode, TEdge>(nodes, edges);
     setFuture((prev) => [currentSnapshot, ...prev]);
 
-    // Alkalmazzuk a régi állapotot
-    setNodes(previous.nodes);
-    setEdges(previous.edges);
+    // Alkalmazzuk a régi állapotot — deep clone to ensure ReactFlow updates positions.
+    const clonedPrevious = JSON.parse(JSON.stringify(previous)) as FlowSnapshot<
+      TNode,
+      TEdge
+    >;
+    if (applySnapshot) {
+      applySnapshot(clonedPrevious);
+    } else {
+      setNodes(clonedPrevious.nodes);
+      setEdges(clonedPrevious.edges);
+    }
     setPast(newPast);
-  }, [past, nodes, edges, setNodes, setEdges]);
+  }, [past, nodes, edges, setNodes, setEdges, applySnapshot]);
 
   // --- ÚJRA VÉGREHAJTÁS (Redo) ---
   const redo = useCallback(() => {
@@ -63,11 +84,16 @@ export function useUndoRedo<TNode extends Node = Node, TEdge extends Edge = Edge
     const currentSnapshot = takeSnapshot<TNode, TEdge>(nodes, edges);
     setPast((prev) => [...prev, currentSnapshot]);
 
-    // Alkalmazzuk az új állapotot
-    setNodes(next.nodes);
-    setEdges(next.edges);
+    // Alkalmazzuk az új állapotot — deep clone to ensure ReactFlow updates positions.
+    const clonedNext = JSON.parse(JSON.stringify(next)) as FlowSnapshot<TNode, TEdge>;
+    if (applySnapshot) {
+      applySnapshot(clonedNext);
+    } else {
+      setNodes(clonedNext.nodes);
+      setEdges(clonedNext.edges);
+    }
     setFuture(newFuture);
-  }, [future, nodes, edges, setNodes, setEdges]);
+  }, [future, nodes, edges, setNodes, setEdges, applySnapshot]);
 
   return { undo, redo, takeSnapshot: recordSnapshot, canUndo: past.length > 0, canRedo: future.length > 0 };
 }
