@@ -18,14 +18,7 @@ import {
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field"
-
-const API = "https://cellflow-backend.kozma-kristof14.workers.dev/"
-
-async function getCsrf(): Promise<string> {
-  const res = await fetch(`${API}/api/auth/csrf`, { credentials: "include" })
-  const { csrfToken } = await res.json()
-  return csrfToken
-}
+import { API, getCsrfToken } from "@/lib/api"
 
 function submitAuthForm(action: string, fields: Record<string, string>) {
   const form = document.createElement("form")
@@ -40,11 +33,6 @@ function submitAuthForm(action: string, fields: Record<string, string>) {
   }
   document.body.appendChild(form)
   form.submit()
-}
-
-async function signInWithGitHub() {
-  const csrfToken = await getCsrf()
-  submitAuthForm(`${API}/api/auth/signin/github`, { csrfToken })
 }
 
 export default function LoginPage() {
@@ -63,27 +51,35 @@ export default function LoginPage() {
     }
   }, [])
 
+  async function signInWithGitHub() {
+    setLoading(true)
+    setError(null)
+    try {
+      const csrfToken = await getCsrfToken()
+      submitAuthForm(`${API}/api/auth/signin/github`, {
+        csrfToken,
+        callbackUrl: window.location.origin + "/",
+      })
+    } catch {
+      setError("Something went wrong. Please try again.")
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
     try {
-      const csrfToken = await getCsrf()
-      const body = new URLSearchParams({ csrfToken, email, password, callbackUrl: window.location.origin + "/" })
-      const res = await fetch(`${API}/api/auth/callback/credentials`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-        credentials: "include",
+      const csrfToken = await getCsrfToken()
+      submitAuthForm(`${API}/api/auth/callback/credentials`, {
+        csrfToken,
+        email,
+        password,
+        callbackUrl: window.location.origin + "/",
       })
-      if (res.url.startsWith(window.location.origin)) {
-        window.location.href = "/"
-        return
-      }
-      setError("Invalid email or password.")
     } catch {
       setError("Something went wrong. Please try again.")
-    } finally {
       setLoading(false)
     }
   }

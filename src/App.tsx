@@ -16,6 +16,7 @@ import { PropertiesPanel } from "@/components/properties-panel";
 import Flow from "@/components/flow";
 import { useUndoRedo } from "@/components/node-handler";
 import LoginPage from "@/pages/login";
+import SignupPage from "@/pages/signup";
 import { FlowStoreProvider, useFlowStore } from "@/lib/flow-store";
 import { NodeAttributeStoreProvider } from "@/lib/node-attribute-store";
 import { cn } from "@/lib/utils";
@@ -276,6 +277,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/*" element={<EditorLayout />} />
     </Routes>
   );

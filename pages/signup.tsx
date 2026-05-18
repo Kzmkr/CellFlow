@@ -11,8 +11,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-
-const API = "http://localhost:8787"
+import { API } from "@/lib/api"
 
 export default function SignupPage() {
   const navigate = useNavigate()
