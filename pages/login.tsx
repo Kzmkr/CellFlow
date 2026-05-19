@@ -95,16 +95,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={signInWithGitHub}
-              >
-                <FaGithub data-icon="inline-start" />
-                Continue with GitHub
-              </Button>
-
+        
               <FieldSeparator>or</FieldSeparator>
 
               {error && (
