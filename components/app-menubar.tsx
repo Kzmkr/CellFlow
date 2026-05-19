@@ -82,23 +82,42 @@ export function AppMenubar({
         return;
       }
 
-      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+      const isModifierKey = e.ctrlKey || e.metaKey;
+      if (isModifierKey && !e.altKey) {
         const key = e.key.toLowerCase();
 
-        if (key === "x") {
+        if (key === "z") {
           e.preventDefault();
-          onCut?.();
+          if (e.shiftKey) {
+            onRedo?.();
+          } else {
+            onUndo?.();
+          }
           return;
         }
-        if (key === "c") {
+
+        if (key === "y") {
           e.preventDefault();
-          onCopy?.();
+          onRedo?.();
           return;
         }
-        if (key === "v") {
-          e.preventDefault();
-          onPaste?.();
-          return;
+
+        if (!e.shiftKey) {
+          if (key === "x") {
+            e.preventDefault();
+            onCut?.();
+            return;
+          }
+          if (key === "c") {
+            e.preventDefault();
+            onCopy?.();
+            return;
+          }
+          if (key === "v") {
+            e.preventDefault();
+            onPaste?.();
+            return;
+          }
         }
       }
 
@@ -110,7 +129,7 @@ export function AppMenubar({
     document.addEventListener("keydown", onKeyDown, { capture: true });
     return () =>
       document.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [onNewTab, onCut, onCopy, onPaste]);
+  }, [onNewTab, onUndo, onRedo, onCut, onCopy, onPaste]);
 
   return (
     <div className="shrink-0 bg-muted/30">
