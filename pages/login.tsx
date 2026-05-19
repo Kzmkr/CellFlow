@@ -20,17 +20,19 @@ import {
 } from "@/components/ui/field"
 import { API, getCsrfToken } from "@/lib/api"
 
-async function authFetch(path: string, fields: Record<string, string>) {
-  const res = await fetch(`${API}${path}`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "X-Auth-Return-Redirect": "1",
-    },
-    body: new URLSearchParams(fields),
-  })
-  return (await res.json()) as { url?: string }
+function submitAuthForm(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form")
+  form.method = "POST"
+  form.action = action
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input")
+    input.type = "hidden"
+    input.name = name
+    input.value = value
+    form.appendChild(input)
+  }
+  document.body.appendChild(form)
+  form.submit()
 }
 
 export default function LoginPage() {
@@ -54,12 +56,10 @@ export default function LoginPage() {
     setError(null)
     try {
       const csrfToken = await getCsrfToken()
-      const { url } = await authFetch("/api/auth/signin/github", {
+      submitAuthForm(`${API}/api/auth/signin/github`, {
         csrfToken,
         callbackUrl: window.location.origin + "/",
       })
-      if (!url) throw new Error("no url")
-      window.location.href = url
     } catch {
       setError("Something went wrong. Please try again.")
       setLoading(false)
@@ -72,18 +72,12 @@ export default function LoginPage() {
     setError(null)
     try {
       const csrfToken = await getCsrfToken()
-      const { url } = await authFetch("/api/auth/callback/credentials", {
+      submitAuthForm(`${API}/api/auth/callback/credentials`, {
         csrfToken,
         email,
         password,
         callbackUrl: window.location.origin + "/",
       })
-      if (url && !url.includes("error=")) {
-        window.location.href = url
-      } else {
-        setError("Invalid email or password.")
-        setLoading(false)
-      }
     } catch {
       setError("Something went wrong. Please try again.")
       setLoading(false)
