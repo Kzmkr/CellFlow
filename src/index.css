@@ -132,3 +132,12 @@ body {
     @apply font-sans;
 }
 }
+
+.tabbar-scroll-area {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.tabbar-scroll-area::-webkit-scrollbar {
+  height: 8px;
+}

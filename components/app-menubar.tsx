@@ -1,10 +1,13 @@
 "use client";
 
 import { PlayIcon } from "lucide-react";
+import { useEffect } from "react";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 import {
   Menubar,
+  MenubarCheckboxItem,
   MenubarContent,
   MenubarItem,
   MenubarMenu,
@@ -14,16 +17,37 @@ import {
   MenubarSubContent,
   MenubarSubTrigger,
   MenubarTrigger,
-  MenubarCheckboxItem,
-  MenubarRadioGroup,
-  MenubarRadioItem,
 } from "@/components/ui/menubar";
-import { useEffect, useState } from "react";
 
-export function AppMenubar() {
-  const [showStatusBar, setShowStatusBar] = useState(true);
-  const [showActivityBar, setShowActivityBar] = useState(false);
-  const [showPanel, setShowPanel] = useState(false);
+type AppMenubarProps = {
+  showNodes: boolean;
+  showProperties: boolean;
+  showTable: boolean;
+  onNewTab: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onCut?: () => void;
+  onCopy?: () => void;
+  onPaste?: () => void;
+  onTogglePanel: (
+    panel: "nodes" | "properties" | "table",
+    value: boolean,
+  ) => void;
+};
+
+export function AppMenubar({
+  showNodes,
+  showProperties,
+  showTable,
+  onNewTab,
+  onUndo,
+  onRedo,
+  onCut,
+  onCopy,
+  onPaste,
+  onTogglePanel,
+}: AppMenubarProps) {
+  const { resolvedTheme, setTheme } = useTheme();
 
   function handleRun() {
     window.dispatchEvent(new CustomEvent("pipeline:run"));
@@ -41,14 +65,71 @@ export function AppMenubar() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT";
+
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() == "t") {
+        e.preventDefault();
+        onNewTab();
+        return;
+      }
+
+      if (isEditable) {
+        return;
+      }
+
+      const isModifierKey = e.ctrlKey || e.metaKey;
+      if (isModifierKey && !e.altKey) {
+        const key = e.key.toLowerCase();
+
+        if (key === "z") {
+          e.preventDefault();
+          if (e.shiftKey) {
+            onRedo?.();
+          } else {
+            onUndo?.();
+          }
+          return;
+        }
+
+        if (key === "y") {
+          e.preventDefault();
+          onRedo?.();
+          return;
+        }
+
+        if (!e.shiftKey) {
+          if (key === "x") {
+            e.preventDefault();
+            onCut?.();
+            return;
+          }
+          if (key === "c") {
+            e.preventDefault();
+            onCopy?.();
+            return;
+          }
+          if (key === "v") {
+            e.preventDefault();
+            onPaste?.();
+            return;
+          }
+        }
+      }
+
       if (e.key == "F11") {
         e.preventDefault();
         toggleFullscreen();
       }
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
+    document.addEventListener("keydown", onKeyDown, { capture: true });
+    return () =>
+      document.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [onNewTab, onUndo, onRedo, onCut, onCopy, onPaste]);
 
   return (
     <div className="shrink-0 bg-muted/30">
@@ -57,93 +138,98 @@ export function AppMenubar() {
           <MenubarMenu>
             <MenubarTrigger>File</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>
-                New Tab <MenubarShortcut>Ctrl+T</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem>
-                New Window <MenubarShortcut>Ctrl+N</MenubarShortcut>
+              <MenubarItem onSelect={onNewTab}>
+                New Tab <MenubarShortcut>Ctrl+Shift+T</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onSelect={handleRun}>
                 Run <MenubarShortcut>Ctrl+Enter</MenubarShortcut>
-              </MenubarItem>
-              <MenubarSeparator />
-              <MenubarSub>
-                <MenubarSubTrigger>Share</MenubarSubTrigger>
-                <MenubarSubContent>
-                  <MenubarItem>Email Link</MenubarItem>
-                  <MenubarItem>Messages</MenubarItem>
-                  <MenubarItem>Notes</MenubarItem>
-                </MenubarSubContent>
-              </MenubarSub>
-              <MenubarSeparator />
-              <MenubarItem>
-                Print <MenubarShortcut>Ctrl+P</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
             <MenubarTrigger>Edit</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>
+              <MenubarItem onSelect={onUndo}>
                 Undo <MenubarShortcut>Ctrl+Z</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
+              <MenubarItem onSelect={onRedo}>
                 Redo <MenubarShortcut>Ctrl+Y</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem>
+              <MenubarItem onSelect={onCut}>
                 Cut <MenubarShortcut>Ctrl+X</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
+              <MenubarItem onSelect={onCopy}>
                 Copy <MenubarShortcut>Ctrl+C</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
+              <MenubarItem onSelect={onPaste}>
                 Paste <MenubarShortcut>Ctrl+V</MenubarShortcut>
-              </MenubarItem>
-              <MenubarSeparator />
-              <MenubarItem>
-                Select All <MenubarShortcut>Ctrl+A</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
+
           <MenubarMenu>
             <MenubarTrigger>View</MenubarTrigger>
             <MenubarContent>
               <MenubarCheckboxItem
-                checked={showStatusBar}
-                onCheckedChange={setShowStatusBar}
+                checked={showProperties}
+                onCheckedChange={(val) => {
+                  onTogglePanel("properties", Boolean(val));
+                }}
               >
-                Status Bar
+                Properties
               </MenubarCheckboxItem>
+
               <MenubarCheckboxItem
-                checked={showActivityBar}
-                onCheckedChange={setShowActivityBar}
+                checked={showNodes}
+                onCheckedChange={(val) => {
+                  onTogglePanel("nodes", Boolean(val));
+                }}
               >
-                Activity Bar
+                Nodes
               </MenubarCheckboxItem>
+
               <MenubarCheckboxItem
-                checked={showPanel}
-                onCheckedChange={setShowPanel}
+                checked={showTable}
+                onCheckedChange={(val) => {
+                  onTogglePanel("table", Boolean(val));
+                }}
               >
-                Panel
+                Table
               </MenubarCheckboxItem>
+
               <MenubarSeparator />
+
+              <MenubarCheckboxItem
+                checked={resolvedTheme == "dark"}
+                onCheckedChange={(val) => {
+                  setTheme(Boolean(val) ? "dark" : "light");
+                }}
+              >
+                Dark Mode <MenubarShortcut>D</MenubarShortcut>
+              </MenubarCheckboxItem>
+
               <MenubarItem onClick={toggleFullscreen}>
                 Toggle Fullscreen <MenubarShortcut>F11</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
+
           <MenubarMenu>
             <MenubarTrigger>Help</MenubarTrigger>
             <MenubarContent>
               <MenubarItem>Documentation</MenubarItem>
-              <MenubarItem>Release Notes</MenubarItem>
               <MenubarSeparator />
               <MenubarItem>About</MenubarItem>
             </MenubarContent>
           </MenubarMenu>
         </Menubar>
+
+        <Button asChild size="sm" variant="outline" aria-label="Sign in">
+          <a href="/login">Sign In</a>
+        </Button>
+
         <Button size="sm" onClick={handleRun}>
           <PlayIcon data-icon="inline-start" />
           Run

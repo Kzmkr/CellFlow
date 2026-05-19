@@ -1,4 +1,12 @@
-import { create } from "zustand";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useRef,
+  type ReactNode,
+} from "react";
+import { useStore } from "zustand";
+import { createStore, type StoreApi } from "zustand/vanilla";
 
 import {
   getDefaultValues,
@@ -19,6 +27,8 @@ type AttributeState = {
   ) => void;
   getNodeErrors: (nodeId: string, kind: NodeKind) => Record<string, string>;
 };
+
+export type NodeAttributeStore = StoreApi<AttributeState>;
 
 function clampNumber(value: number, min?: number, max?: number): number {
   if (Number.isNaN(value)) {
@@ -53,7 +63,9 @@ function normalizeValue(
     }
     case "select": {
       const stringValue = String(value);
-      const isValid = field.options.some((option) => option.value === stringValue);
+      const isValid = field.options.some(
+        (option) => option.value === stringValue,
+      );
       return isValid ? stringValue : field.defaultValue;
     }
     default:
@@ -74,49 +86,88 @@ function fieldHasError(field: NodeField, value: unknown): string | null {
   return null;
 }
 
-export const useNodeAttributeStore = create<AttributeState>((set, get) => ({
-  nodeValues: {},
-  ensureNodeDefaults: (nodeId, kind) => {
-    set((state) => {
-      if (state.nodeValues[nodeId]) {
-        return state;
+export function createNodeAttributeStore(): NodeAttributeStore {
+  return createStore<AttributeState>((set, get) => ({
+    nodeValues: {},
+    ensureNodeDefaults: (nodeId, kind) => {
+      set((state) => {
+        if (state.nodeValues[nodeId]) {
+          return state;
+        }
+
+        return {
+          nodeValues: {
+            ...state.nodeValues,
+            [nodeId]: getDefaultValues(kind),
+          },
+        };
+      });
+    },
+    setNodeValue: (nodeId, kind, key, value) => {
+      const definition = getNodeDefinition(kind);
+      const field = definition.attributes.find((item) => item.key === key);
+      if (!field) {
+        return;
       }
 
-      return {
+      set((state) => ({
         nodeValues: {
           ...state.nodeValues,
-          [nodeId]: getDefaultValues(kind),
+          [nodeId]: {
+            ...(state.nodeValues[nodeId] ?? getDefaultValues(kind)),
+            [key]: normalizeValue(field, value),
+          },
         },
-      };
-    });
-  },
-  setNodeValue: (nodeId, kind, key, value) => {
-    const definition = getNodeDefinition(kind);
-    const field = definition.attributes.find((item) => item.key === key);
-    if (!field) {
-      return;
-    }
+      }));
+    },
+    getNodeErrors: (nodeId, kind) => {
+      const definition = getNodeDefinition(kind);
+      const values = get().nodeValues[nodeId] ?? getDefaultValues(kind);
 
-    set((state) => ({
-      nodeValues: {
-        ...state.nodeValues,
-        [nodeId]: {
-          ...(state.nodeValues[nodeId] ?? getDefaultValues(kind)),
-          [key]: normalizeValue(field, value),
+      return definition.attributes.reduce<Record<string, string>>(
+        (acc, field) => {
+          const maybeError = fieldHasError(field, values[field.key]);
+          if (maybeError) {
+            acc[field.key] = maybeError;
+          }
+          return acc;
         },
-      },
-    }));
-  },
-  getNodeErrors: (nodeId, kind) => {
-    const definition = getNodeDefinition(kind);
-    const values = get().nodeValues[nodeId] ?? getDefaultValues(kind);
+        {},
+      );
+    },
+  }));
+}
 
-    return definition.attributes.reduce<Record<string, string>>((acc, field) => {
-      const maybeError = fieldHasError(field, values[field.key]);
-      if (maybeError) {
-        acc[field.key] = maybeError;
-      }
-      return acc;
-    }, {});
-  },
-}));
+const NodeAttributeStoreContext = createContext<NodeAttributeStore | null>(
+  null,
+);
+
+export function NodeAttributeStoreProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const storeRef = useRef<NodeAttributeStore | null>(null);
+  if (storeRef.current == null) {
+    storeRef.current = createNodeAttributeStore();
+  }
+
+  return createElement(
+    NodeAttributeStoreContext.Provider,
+    { value: storeRef.current },
+    children,
+  );
+}
+
+export function useNodeAttributeStore<T>(
+  selector: (state: AttributeState) => T,
+): T {
+  const store = useContext(NodeAttributeStoreContext);
+  if (!store) {
+    throw new Error(
+      "useNodeAttributeStore must be used within a NodeAttributeStoreProvider",
+    );
+  }
+
+  return useStore(store, selector);
+}

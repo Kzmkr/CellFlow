@@ -3,9 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#000000" />
-  <script>navigator.serviceWorker.register("pwabuilder-adv-sw.js")</script>
+    <script type="module">
+      if ("serviceWorker" in navigator) {
+        const isLocalHost =
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1";
+
+        if (isLocalHost) {
+          navigator.serviceWorker
+            .getRegistrations()
+            .then((registrations) => {
+              for (const registration of registrations) {
+                registration.unregister();
+              }
+            })
+            .catch((error) => {
+              console.error("Failed to unregister service workers in dev:", error);
+            });
+        } else {
+          navigator.serviceWorker
+            .register("/pwabuilder-adv-sw.js")
+            .catch((error) => {
+              console.error("Failed to register service worker:", error);
+            });
+        }
+      }
+    </script>
     <title>Cellflow</title>
   </head>
   <body>

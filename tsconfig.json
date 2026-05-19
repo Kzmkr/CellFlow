@@ -19,6 +19,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["src", "components", "lib", "hooks"],
+  "include": ["src", "components", "lib", "hooks", "pages"],
   "exclude": ["node_modules"]
 }
