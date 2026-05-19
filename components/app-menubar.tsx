@@ -26,6 +26,9 @@ type AppMenubarProps = {
   onNewTab: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
+  onCut?: () => void;
+  onCopy?: () => void;
+  onPaste?: () => void;
   onTogglePanel: (
     panel: "nodes" | "properties" | "table",
     value: boolean,
@@ -39,6 +42,9 @@ export function AppMenubar({
   onNewTab,
   onUndo,
   onRedo,
+  onCut,
+  onCopy,
+  onPaste,
   onTogglePanel,
 }: AppMenubarProps) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -59,10 +65,41 @@ export function AppMenubar({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT";
+
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() == "t") {
         e.preventDefault();
         onNewTab();
         return;
+      }
+
+      if (isEditable) {
+        return;
+      }
+
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        const key = e.key.toLowerCase();
+
+        if (key === "x") {
+          e.preventDefault();
+          onCut?.();
+          return;
+        }
+        if (key === "c") {
+          e.preventDefault();
+          onCopy?.();
+          return;
+        }
+        if (key === "v") {
+          e.preventDefault();
+          onPaste?.();
+          return;
+        }
       }
 
       if (e.key == "F11") {
@@ -73,7 +110,7 @@ export function AppMenubar({
     document.addEventListener("keydown", onKeyDown, { capture: true });
     return () =>
       document.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [onNewTab]);
+  }, [onNewTab, onCut, onCopy, onPaste]);
 
   return (
     <div className="shrink-0 bg-muted/30">
@@ -101,13 +138,13 @@ export function AppMenubar({
                 Redo <MenubarShortcut>Ctrl+Y</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem>
+              <MenubarItem onSelect={onCut}>
                 Cut <MenubarShortcut>Ctrl+X</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
+              <MenubarItem onSelect={onCopy}>
                 Copy <MenubarShortcut>Ctrl+C</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem>
+              <MenubarItem onSelect={onPaste}>
                 Paste <MenubarShortcut>Ctrl+V</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>

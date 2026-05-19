@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PlusIcon } from "lucide-react";
 
 import {
@@ -18,6 +18,12 @@ import { useUndoRedo } from "@/components/node-handler";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import { FlowStoreProvider, useFlowStore } from "@/lib/flow-store";
+import {
+  copySelectedNode,
+  cutSelectedNode,
+  pasteNodeFromClipboard,
+  type NodeClipboard,
+} from "../lib/node-clipboard";
 import { NodeAttributeStoreProvider } from "@/lib/node-attribute-store";
 import { cn } from "@/lib/utils";
 
@@ -93,14 +99,72 @@ function UndoRedoBridge({
   return null;
 }
 
+function ClipboardBridge({
+  active,
+  onRegister,
+}: {
+  active: boolean;
+  onRegister: (handlers: {
+    copy: () => void;
+    cut: () => void;
+    paste: () => void;
+  }) => void;
+}) {
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const selectedNodeId = useFlowStore((state) => state.selectedNodeId);
+  const setNodes = useFlowStore((state) => state.setNodes);
+  const setEdges = useFlowStore((state) => state.setEdges);
+  const clipboardRef = useRef<NodeClipboard | null>(null);
+
+  const copy = useCallback(() => {
+    const clipboard = copySelectedNode(selectedNodeId, nodes);
+    if (clipboard) {
+      clipboardRef.current = clipboard;
+    }
+  }, [nodes, selectedNodeId]);
+
+  const cut = useCallback(() => {
+    const result = cutSelectedNode(selectedNodeId, nodes, edges);
+    if (result.clipboard) {
+      clipboardRef.current = result.clipboard;
+    }
+    setNodes(result.nodes);
+    setEdges(result.edges);
+  }, [edges, nodes, selectedNodeId, setEdges, setNodes]);
+
+  const paste = useCallback(() => {
+    if (!clipboardRef.current) {
+      return;
+    }
+    const nextNodes = pasteNodeFromClipboard(clipboardRef.current, nodes);
+    setNodes(nextNodes);
+  }, [nodes, setNodes]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    onRegister({ copy, cut, paste });
+  }, [active, copy, cut, onRegister, paste]);
+
+  return null;
+}
+
 function TabWorkspace({
   tab,
   active,
   onRegisterUndoRedo,
+  onRegisterClipboard,
 }: {
   tab: EditorTab;
   active: boolean;
   onRegisterUndoRedo: (handlers: { undo: () => void; redo: () => void }) => void;
+  onRegisterClipboard: (handlers: {
+    copy: () => void;
+    cut: () => void;
+    paste: () => void;
+  }) => void;
 }) {
   const showNodes = tab.panels.nodes;
   const showProperties = tab.panels.properties;
@@ -117,6 +181,7 @@ function TabWorkspace({
     >
       <FlowStoreProvider>
         <UndoRedoBridge active={active} onRegister={onRegisterUndoRedo} />
+        <ClipboardBridge active={active} onRegister={onRegisterClipboard} />
         <NodeAttributeStoreProvider>
           <ResizablePanelGroup direction="vertical" className="h-full w-full">
             <ResizablePanel defaultSize={70} minSize={3}>
@@ -174,6 +239,15 @@ function EditorLayout() {
   }>({
     undo: () => {},
     redo: () => {},
+  });
+  const [activeClipboard, setActiveClipboard] = useState<{
+    copy: () => void;
+    cut: () => void;
+    paste: () => void;
+  }>({
+    copy: () => {},
+    cut: () => {},
+    paste: () => {},
   });
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
@@ -239,6 +313,9 @@ function EditorLayout() {
         onNewTab={openTab}
         onUndo={activeUndoRedo.undo}
         onRedo={activeUndoRedo.redo}
+        onCut={activeClipboard.cut}
+        onCopy={activeClipboard.copy}
+        onPaste={activeClipboard.paste}
         showNodes={activePanels.nodes}
         showProperties={activePanels.properties}
         showTable={activePanels.table}
@@ -266,6 +343,7 @@ function EditorLayout() {
             tab={tab}
             active={tab.id === activeTabId}
             onRegisterUndoRedo={setActiveUndoRedo}
+            onRegisterClipboard={setActiveClipboard}
           />
         ))}
       </div>
