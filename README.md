@@ -53,3 +53,7 @@ Minimal only for auth and saving workflows (Cloudflare D1)
 - **Statistics** — regression, correlation, descriptive stats.
 - **LaTeX annotations** on charts (scalar stats rendered as equations).
 - **Export** a workflow as a single standalone HTML file.
+
+Ai disclaimer:
+AI agents were used throughout the entire development lifecycle
+
