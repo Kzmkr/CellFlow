@@ -67,14 +67,16 @@ export function PropertiesPanel() {
     ensureNodeDefaults(selectedNodeId, selectedNode.data.kind);
   }, [selectedNodeId, selectedNode, ensureNodeDefaults]);
 
-  // Load upstream column names so Filter mode can offer a column dropdown.
+  // Load upstream column names so Filter mode and the Chart node can offer
+  // column dropdowns.
   const filterMode =
     selectedNode?.data.kind === "transform" &&
     String((selectedNodeId && nodeValues[selectedNodeId]?.mode) ?? "sql") ===
       "filter";
+  const needsInputColumns = filterMode || selectedNode?.data.kind === "chart";
 
   useEffect(() => {
-    if (!filterMode || !selectedNodeId) {
+    if (!needsInputColumns || !selectedNodeId) {
       setInputColumns([]);
       return;
     }
@@ -97,7 +99,7 @@ export function PropertiesPanel() {
     return () => {
       cancelled = true;
     };
-  }, [filterMode, selectedNodeId, nodes, edges, nodeValues, nodeFiles]);
+  }, [needsInputColumns, selectedNodeId, nodes, edges, nodeValues, nodeFiles]);
 
   if (!selectedNodeId || !selectedNode) {
     return (
@@ -178,7 +180,12 @@ export function PropertiesPanel() {
               return null;
             }
 
-            if (isTransformNode && field.key === "filterColumn") {
+            const isColumnDropdown =
+              field.key === "filterColumn" ||
+              field.key === "xColumn" ||
+              field.key === "yColumn";
+
+            if (needsInputColumns && isColumnDropdown) {
               const selectedColumn = String(currentValue);
               const options =
                 selectedColumn && !inputColumns.includes(selectedColumn)
@@ -211,7 +218,7 @@ export function PropertiesPanel() {
                   <FieldDescription>
                     {options.length === 0
                       ? "Connect an input node to load its columns."
-                      : "Choose a column to filter on."}
+                      : "Pick from the upstream columns."}
                   </FieldDescription>
                 </Field>
               );

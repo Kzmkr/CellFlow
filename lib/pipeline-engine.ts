@@ -355,15 +355,15 @@ export async function runPipeline(
         logs.push(`[${node.id}] join: ${joinType} JOIN on ${leftKey} = ${rightKey}`);
       }
 
-      if (node.data.kind === "dbOutput") {
+      if (node.data.kind === "dbOutput" || node.data.kind === "chart") {
         const preds = getPredecessors(node.id, edges);
         const predTable = preds.length > 0 ? resultTableByNode.get(preds[0]) : undefined;
         if (!predTable) {
-          logs.push(`[${node.id}] dbOutput: no input table`);
+          logs.push(`[${node.id}] ${node.data.kind}: no input table`);
           continue;
         }
         resultTableByNode.set(node.id, predTable);
-        logs.push(`[${node.id}] dbOutput: mapped to ${predTable}`);
+        logs.push(`[${node.id}] ${node.data.kind}: mapped to ${predTable}`);
       }
     } catch (err) {
       logs.push(`[${node.id}] error: ${(err as Error).message}`);

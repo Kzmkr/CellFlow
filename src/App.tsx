@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { PlayIcon, PlusIcon, SnowflakeIcon } from "lucide-react";
 
 import {
   ResizablePanelGroup,
@@ -8,7 +8,9 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data-table";
+import { ChartView, type ChartSettings } from "@/components/chart-view";
 import { AppMenubar } from "@/components/app-menubar";
 import { EditorTabBar } from "@/components/editor-tab-bar";
 import { ActionGrid } from "@/components/action-grid";
@@ -287,6 +289,101 @@ function SaveLoadBridge({
   );
 }
 
+type FrozenView = {
+  isChart: boolean;
+  rows: Record<string, unknown>[];
+  columns: string[];
+  chartSettings: ChartSettings | null;
+};
+
+/**
+ * Bottom-panel output. Shows a chart when a chart node is selected, otherwise
+ * the data table. A Freeze toggle pins the current view (data + chart settings)
+ * and ignores selection or pipeline changes until resumed.
+ */
+function DataView({ result }: { result: PipelineResult | null }) {
+  const selectedNode = useFlowStore((state) =>
+    state.nodes.find((node) => node.id === state.selectedNodeId),
+  );
+  const nodeValues = useNodeAttributeStore((state) => state.nodeValues);
+
+  const [frozen, setFrozen] = useState(false);
+  const [frozenView, setFrozenView] = useState<FrozenView | null>(null);
+
+  const isChart = selectedNode?.data.kind === "chart";
+  const values = selectedNode ? nodeValues[selectedNode.id] : undefined;
+  const chartSettings: ChartSettings | null = isChart
+    ? {
+        chartType: String(values?.chartType ?? "bar"),
+        xColumn: String(values?.xColumn ?? ""),
+        yColumn: String(values?.yColumn ?? ""),
+        aggregation: String(values?.aggregation ?? "none"),
+      }
+    : null;
+
+  const liveView: FrozenView = {
+    isChart,
+    rows: result?.rows ?? [],
+    columns: result?.columns ?? [],
+    chartSettings,
+  };
+
+  const view = frozen && frozenView ? frozenView : liveView;
+
+  const toggleFrozen = useCallback(() => {
+    if (frozen) {
+      setFrozen(false);
+      setFrozenView(null);
+    } else {
+      setFrozenView(liveView);
+      setFrozen(true);
+    }
+  }, [frozen, liveView]);
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground tabular-nums">
+            {view.rows.length}
+          </span>
+          <span>rows</span>
+          {frozen ? (
+            <Badge variant="secondary" className="gap-1">
+              <SnowflakeIcon className="size-3" />
+              Frozen
+            </Badge>
+          ) : null}
+        </div>
+        <Button
+          size="sm"
+          variant={frozen ? "default" : "outline"}
+          onClick={toggleFrozen}
+        >
+          {frozen ? (
+            <>
+              <PlayIcon data-icon="inline-start" />
+              Resume
+            </>
+          ) : (
+            <>
+              <SnowflakeIcon data-icon="inline-start" />
+              Freeze
+            </>
+          )}
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1">
+        {view.isChart && view.chartSettings ? (
+          <ChartView data={view.rows} settings={view.chartSettings} />
+        ) : (
+          <DataTable data={view.rows} columns={view.columns} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TabWorkspace({
   tab,
   active,
@@ -314,23 +411,6 @@ function TabWorkspace({
   const showTable = tab.panels.table;
   const bottomVisible = showNodes || showTable;
   const [pipelineResult, setPipelineResult] = useState<PipelineResult | null>(null);
-  const [frozen, setFrozen] = useState(false);
-  const frozenRef = useRef(false);
-
-  // When frozen, the table keeps its current contents and ignores any new
-  // pipeline results (auto-preview or manual runs).
-  const handleResult = useCallback((result: PipelineResult) => {
-    if (frozenRef.current) return;
-    setPipelineResult(result);
-  }, []);
-
-  const toggleFrozen = useCallback(() => {
-    setFrozen((current) => {
-      const next = !current;
-      frozenRef.current = next;
-      return next;
-    });
-  }, []);
 
   return (
     <div
@@ -352,7 +432,7 @@ function TabWorkspace({
             onUpdateTab={onUpdateTab}
             onRegister={onRegisterSaveLoad}
           />
-          <PipelineRunner active={active} onResult={handleResult} />
+          <PipelineRunner active={active} onResult={setPipelineResult} />
           <ResizablePanelGroup direction="vertical" className="h-full w-full">
             <ResizablePanel defaultSize={70} minSize={3}>
               <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -385,12 +465,7 @@ function TabWorkspace({
 
                   {showTable && (
                     <ResizablePanel minSize={10}>
-                      <DataTable
-                        data={pipelineResult?.rows ?? []}
-                        columns={pipelineResult?.columns ?? []}
-                        frozen={frozen}
-                        onToggleFreeze={toggleFrozen}
-                      />
+                      <DataView result={pipelineResult} />
                     </ResizablePanel>
                   )}
                 </ResizablePanelGroup>

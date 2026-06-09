@@ -42,7 +42,7 @@ export type NodeField =
 
 export type NodeDefinition = {
   title: string;
-  icon: "file-input" | "wand" | "database" | "join";
+  icon: "file-input" | "wand" | "database" | "join" | "chart";
   colorClassName: string;
   handles: Array<{
     type: "source" | "target";
@@ -200,6 +200,64 @@ export const NODE_REGISTRY = {
         label: "Right Key",
         defaultValue: "id",
         required: true,
+      },
+    ],
+  },
+  chart: {
+    title: "Chart",
+    icon: "chart",
+    colorClassName: "border-rose-500/30 bg-rose-500/8 text-rose-900",
+    handles: [{ type: "target", position: "left" }],
+    attributes: [
+      {
+        type: "text",
+        key: "label",
+        label: "Label",
+        defaultValue: "Chart",
+        required: true,
+      },
+      {
+        type: "select",
+        key: "chartType",
+        label: "Chart Type",
+        defaultValue: "bar",
+        options: [
+          { value: "bar", label: "Bar" },
+          { value: "line", label: "Line" },
+          { value: "pie", label: "Pie" },
+          { value: "doughnut", label: "Doughnut" },
+          { value: "scatter", label: "Scatter" },
+        ],
+        required: true,
+      },
+      {
+        type: "text",
+        key: "xColumn",
+        label: "X / Category",
+        defaultValue: "",
+        placeholder: "Select a column",
+      },
+      {
+        type: "text",
+        key: "yColumn",
+        label: "Y / Value",
+        defaultValue: "",
+        placeholder: "Select a column",
+      },
+      {
+        type: "select",
+        key: "aggregation",
+        label: "Aggregation",
+        description: "How to combine Y values that share an X category.",
+        defaultValue: "none",
+        options: [
+          { value: "none", label: "None" },
+          { value: "sum", label: "Sum" },
+          { value: "avg", label: "Average" },
+          { value: "count", label: "Count" },
+          { value: "min", label: "Min" },
+          { value: "max", label: "Max" },
+        ],
       },
     ],
   },
