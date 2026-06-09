@@ -70,6 +70,58 @@ function getPredecessors(nodeId: string, edges: Edge[]): string[] {
     .map((e) => e.source);
 }
 
+function quoteIdentifier(name: string): string {
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Render a user-supplied value as a SQL literal. Numeric strings are emitted
+ * bare; everything else is single-quoted and escaped.
+ */
+function toSqlLiteral(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed !== "" && !Number.isNaN(Number(trimmed))) {
+    return trimmed;
+  }
+  return `'${trimmed.replace(/'/g, "''")}'`;
+}
+
+/**
+ * Build a SQL WHERE clause for the Filter mode of a transform node.
+ */
+function buildFilterClause(values: NodeValues): string | null {
+  const column = String(values.filterColumn ?? "").trim();
+  if (!column) {
+    return null;
+  }
+
+  const operator = String(values.filterOperator ?? "eq");
+  const col = quoteIdentifier(column);
+  const value = String(values.filterValue ?? "");
+
+  switch (operator) {
+    case "neq":
+      return `${col} <> ${toSqlLiteral(value)}`;
+    case "gt":
+      return `${col} > ${toSqlLiteral(value)}`;
+    case "gte":
+      return `${col} >= ${toSqlLiteral(value)}`;
+    case "lt":
+      return `${col} < ${toSqlLiteral(value)}`;
+    case "lte":
+      return `${col} <= ${toSqlLiteral(value)}`;
+    case "between": {
+      const upper = String(values.filterValueTo ?? "");
+      return `${col} BETWEEN ${toSqlLiteral(value)} AND ${toSqlLiteral(upper)}`;
+    }
+    case "contains":
+      return `${col} LIKE ${toSqlLiteral(`%${value}%`)}`;
+    case "eq":
+    default:
+      return `${col} = ${toSqlLiteral(value)}`;
+  }
+}
+
 /**
  * Collect the target node plus every node it (transitively) depends on.
  * Used to run the pipeline only up to a selected node.
@@ -197,39 +249,70 @@ export async function runPipeline(
       }
 
       if (node.data.kind === "transform") {
-        const script = String(values.script ?? "").trim();
-        if (!script) {
-          logs.push(`[${node.id}] transform: no script provided`);
-          continue;
-        }
-
+        const mode = String(values.mode ?? "sql");
         const preds = getPredecessors(node.id, edges);
-        let sql = script;
-        for (const predId of preds) {
-          const predTable = resultTableByNode.get(predId);
-          if (predTable) {
-            sql = sql.replace(/\binput\b/gi, predTable);
+
+        if (mode === "filter") {
+          const predTable = preds
+            .map((p) => resultTableByNode.get(p))
+            .find((table): table is string => Boolean(table));
+
+          if (!predTable) {
+            logs.push(`[${node.id}] filter: no input table`);
+            return {
+              success: false,
+              rows: [],
+              columns: [],
+              error: `Filter node ${node.id} has no valid input. Connect a node that produces data.`,
+              logs,
+            };
           }
-        }
 
-        if (/\binput\b/i.test(sql)) {
-          const missing = preds.filter((p) => !resultTableByNode.has(p));
-          const reason = missing.length > 0
-            ? `missing input data from predecessor(s): ${missing.join(", ")}`
-            : "input reference could not be resolved";
-          logs.push(`[${node.id}] transform: ${reason}`);
-          return {
-            success: false,
-            rows: [],
-            columns: [],
-            error: `Transform node ${node.id} has no valid input. Make sure the preceding node(s) executed successfully (${reason}).`,
-            logs,
-          };
-        }
+          const clause = buildFilterClause(values);
+          const sql = clause
+            ? `SELECT * FROM ${predTable} WHERE ${clause}`
+            : `SELECT * FROM ${predTable}`;
+          await createOrReplaceTable(tableName, sql);
+          resultTableByNode.set(node.id, tableName);
+          logs.push(
+            clause
+              ? `[${node.id}] filter: WHERE ${clause}`
+              : `[${node.id}] filter: no column selected, passing through`
+          );
+        } else {
+          const script = String(values.script ?? "").trim();
+          if (!script) {
+            logs.push(`[${node.id}] transform: no script provided`);
+            continue;
+          }
 
-        await createOrReplaceTable(tableName, sql);
-        resultTableByNode.set(node.id, tableName);
-        logs.push(`[${node.id}] transform: executed SQL`);
+          let sql = script;
+          for (const predId of preds) {
+            const predTable = resultTableByNode.get(predId);
+            if (predTable) {
+              sql = sql.replace(/\binput\b/gi, predTable);
+            }
+          }
+
+          if (/\binput\b/i.test(sql)) {
+            const missing = preds.filter((p) => !resultTableByNode.has(p));
+            const reason = missing.length > 0
+              ? `missing input data from predecessor(s): ${missing.join(", ")}`
+              : "input reference could not be resolved";
+            logs.push(`[${node.id}] transform: ${reason}`);
+            return {
+              success: false,
+              rows: [],
+              columns: [],
+              error: `Transform node ${node.id} has no valid input. Make sure the preceding node(s) executed successfully (${reason}).`,
+              logs,
+            };
+          }
+
+          await createOrReplaceTable(tableName, sql);
+          resultTableByNode.set(node.id, tableName);
+          logs.push(`[${node.id}] transform: executed SQL`);
+        }
       }
 
       if (node.data.kind === "join") {
@@ -315,7 +398,11 @@ export async function runPipeline(
 
   try {
     const rows = await query(`SELECT * FROM ${finalTable} LIMIT 1000`);
-    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    let columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    if (columns.length === 0) {
+      const described = await query(`DESCRIBE ${finalTable}`);
+      columns = described.map((row) => String(row.column_name));
+    }
     logs.push(`Pipeline complete: ${rows.length} rows`);
     return { success: true, rows, columns, logs };
   } catch (err) {
@@ -327,4 +414,19 @@ export async function runPipeline(
       logs,
     };
   }
+}
+
+/**
+ * Run the pipeline up to a node and return the column names it produces.
+ * Used to populate the Filter mode column dropdown from upstream data.
+ */
+export async function getNodeColumns(
+  nodes: RegistryFlowNode[],
+  edges: Edge[],
+  nodeValues: Record<string, NodeValues>,
+  fileMap: Record<string, File> | undefined,
+  nodeId: string
+): Promise<string[]> {
+  const result = await runPipeline(nodes, edges, nodeValues, fileMap, nodeId);
+  return result.success ? result.columns : [];
 }

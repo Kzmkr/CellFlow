@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { SparklesIcon } from "lucide-react";
 
@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useFlowStore } from "@/lib/flow-store";
 import { useNodeAttributeStore } from "@/lib/node-attribute-store";
 import { getDefaultValues, getNodeDefinition } from "@/lib/node-registry";
+import { getNodeColumns } from "@/lib/pipeline-engine";
 
 const stats = [
   { label: "Rows", value: "2k" },
@@ -45,13 +46,19 @@ export function PropertiesPanel() {
   const selectedNode = useFlowStore((state) =>
     state.nodes.find((node) => node.id === state.selectedNodeId),
   );
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
 
   const nodeValues = useNodeAttributeStore((state) => state.nodeValues);
+  const nodeFiles = useNodeAttributeStore((state) => state.nodeFiles);
   const ensureNodeDefaults = useNodeAttributeStore(
     (state) => state.ensureNodeDefaults,
   );
   const setNodeValue = useNodeAttributeStore((state) => state.setNodeValue);
+  const setNodeFile = useNodeAttributeStore((state) => state.setNodeFile);
   const getNodeErrors = useNodeAttributeStore((state) => state.getNodeErrors);
+
+  const [inputColumns, setInputColumns] = useState<string[]>([]);
 
   useEffect(() => {
     if (!selectedNodeId || !selectedNode) {
@@ -59,6 +66,38 @@ export function PropertiesPanel() {
     }
     ensureNodeDefaults(selectedNodeId, selectedNode.data.kind);
   }, [selectedNodeId, selectedNode, ensureNodeDefaults]);
+
+  // Load upstream column names so Filter mode can offer a column dropdown.
+  const filterMode =
+    selectedNode?.data.kind === "transform" &&
+    String((selectedNodeId && nodeValues[selectedNodeId]?.mode) ?? "sql") ===
+      "filter";
+
+  useEffect(() => {
+    if (!filterMode || !selectedNodeId) {
+      setInputColumns([]);
+      return;
+    }
+    const predecessorId = edges.find(
+      (edge) => edge.target === selectedNodeId,
+    )?.source;
+    if (!predecessorId) {
+      setInputColumns([]);
+      return;
+    }
+
+    let cancelled = false;
+    getNodeColumns(nodes, edges, nodeValues, nodeFiles, predecessorId)
+      .then((columns) => {
+        if (!cancelled) setInputColumns(columns);
+      })
+      .catch(() => {
+        if (!cancelled) setInputColumns([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filterMode, selectedNodeId, nodes, edges, nodeValues, nodeFiles]);
 
   if (!selectedNodeId || !selectedNode) {
     return (
@@ -90,6 +129,26 @@ export function PropertiesPanel() {
     file: ["json", "csv", "parquet"],
   };
 
+  // Transform node toggles between SQL and Filter mode; hide the fields that
+  // don't belong to the active mode.
+  const isTransformNode = selectedNode.data.kind === "transform";
+  const transformMode = String(values.mode ?? "sql");
+  const filterOperator = String(values.filterOperator ?? "eq");
+  const hiddenKeys = new Set<string>();
+  if (isTransformNode) {
+    if (transformMode === "filter") {
+      hiddenKeys.add("script");
+      if (filterOperator !== "between") {
+        hiddenKeys.add("filterValueTo");
+      }
+    } else {
+      hiddenKeys.add("filterColumn");
+      hiddenKeys.add("filterOperator");
+      hiddenKeys.add("filterValue");
+      hiddenKeys.add("filterValueTo");
+    }
+  }
+
   return (
     <div className="flex h-full flex-col bg-muted/50 p-4">
       <div className="mb-3">
@@ -114,6 +173,49 @@ export function PropertiesPanel() {
             const fieldId = `${selectedNodeId}-${field.key}`;
             const currentValue = values[field.key] ?? field.defaultValue;
             const error = errors[field.key];
+
+            if (hiddenKeys.has(field.key)) {
+              return null;
+            }
+
+            if (isTransformNode && field.key === "filterColumn") {
+              const selectedColumn = String(currentValue);
+              const options =
+                selectedColumn && !inputColumns.includes(selectedColumn)
+                  ? [selectedColumn, ...inputColumns]
+                  : inputColumns;
+
+              return (
+                <Field key={field.key}>
+                  <FieldLabel htmlFor={fieldId}>{field.label}</FieldLabel>
+                  <Select
+                    value={selectedColumn}
+                    onValueChange={(value) => {
+                      setNodeValue(selectedNodeId, selectedNode.data.kind, field.key, value);
+                    }}
+                    disabled={options.length === 0}
+                  >
+                    <SelectTrigger id={fieldId}>
+                      <SelectValue placeholder="Select a column" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {options.map((column) => (
+                          <SelectItem key={column} value={column}>
+                            {column}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    {options.length === 0
+                      ? "Connect an input node to load its columns."
+                      : "Choose a column to filter on."}
+                  </FieldDescription>
+                </Field>
+              );
+            }
 
             if (field.type === "toggle") {
               return (
@@ -242,6 +344,7 @@ export function PropertiesPanel() {
                       const file = event.target.files?.[0];
                       if (file) {
                         setNodeValue(selectedNodeId, selectedNode.data.kind, field.key, file.name);
+                        setNodeFile(selectedNodeId, file);
                       }
                     }}
                   />
