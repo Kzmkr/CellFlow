@@ -476,7 +476,7 @@ function EditorLayout() {
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <div className="flex h-screen w-full flex-col overflow-hidden">
       <Toaster position="top-right" />
       <AppMenubar
         onNewTab={openTab}
