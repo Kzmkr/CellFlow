@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { forwardRef, useImperativeHandle, useMemo, useRef } from "react"
 import {
   ArcElement,
   BarElement,
@@ -33,6 +33,11 @@ export type ChartSettings = {
   xColumn: string
   yColumn: string
   aggregation: string
+}
+
+export type ChartViewHandle = {
+  /** Returns the chart as a PNG data URL, or null if nothing is rendered. */
+  toImage: () => string | null
 }
 
 type DataRow = Record<string, unknown>
@@ -101,9 +106,21 @@ function buildCategoryData(rows: DataRow[], settings: ChartSettings) {
   }
 }
 
-export function ChartView({ data, settings }: { data: DataRow[]; settings: ChartSettings }) {
+export const ChartView = forwardRef<
+  ChartViewHandle,
+  { data: DataRow[]; settings: ChartSettings }
+>(function ChartView({ data, settings }, ref) {
+  const chartRef = useRef<ChartJS<ChartType> | null>(null)
   const chartType = (settings.chartType || "bar") as ChartType
   const isCircular = chartType === "pie" || chartType === "doughnut"
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      toImage: () => chartRef.current?.toBase64Image() ?? null,
+    }),
+    [],
+  )
 
   const { chartData, hasConfig } = useMemo(() => {
     const configured =
@@ -182,7 +199,7 @@ export function ChartView({ data, settings }: { data: DataRow[]; settings: Chart
 
   return (
     <div className="h-full min-h-0 p-4">
-      <Chart type={chartType} data={chartData} options={options} />
+      <Chart ref={chartRef} type={chartType} data={chartData} options={options} />
     </div>
   )
-}
+})

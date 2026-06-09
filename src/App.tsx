@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PlayIcon, PlusIcon, SnowflakeIcon } from "lucide-react";
+import { DownloadIcon, PlayIcon, PlusIcon, SnowflakeIcon } from "lucide-react";
 
 import {
   ResizablePanelGroup,
@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data-table";
-import { ChartView, type ChartSettings } from "@/components/chart-view";
+import { ChartView, type ChartSettings, type ChartViewHandle } from "@/components/chart-view";
 import { AppMenubar } from "@/components/app-menubar";
 import { EditorTabBar } from "@/components/editor-tab-bar";
 import { ActionGrid } from "@/components/action-grid";
@@ -296,6 +296,34 @@ type FrozenView = {
   chartSettings: ChartSettings | null;
 };
 
+function escapeCsv(value: unknown): string {
+  if (value == null) return "";
+  const str = String(value);
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+function rowsToCsv(rows: Record<string, unknown>[], columns: string[]): string {
+  const header = columns.map(escapeCsv).join(",");
+  const body = rows.map((row) =>
+    columns.map((col) => escapeCsv(row[col])).join(","),
+  );
+  return [header, ...body].join("\n");
+}
+
+function triggerDownload(href: string, filename: string) {
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+function slugify(value: string): string {
+  const slug = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug || "export";
+}
+
 /**
  * Bottom-panel output. Shows a chart when a chart node is selected, otherwise
  * the data table. A Freeze toggle pins the current view (data + chart settings)
@@ -309,6 +337,7 @@ function DataView({ result }: { result: PipelineResult | null }) {
 
   const [frozen, setFrozen] = useState(false);
   const [frozenView, setFrozenView] = useState<FrozenView | null>(null);
+  const chartRef = useRef<ChartViewHandle>(null);
 
   const isChart = selectedNode?.data.kind === "chart";
   const values = selectedNode ? nodeValues[selectedNode.id] : undefined;
@@ -340,6 +369,36 @@ function DataView({ result }: { result: PipelineResult | null }) {
     }
   }, [frozen, liveView]);
 
+  const baseName = slugify(
+    String(values?.label ?? selectedNode?.data.kind ?? "export"),
+  );
+  const canDownload = view.isChart
+    ? Boolean(view.chartSettings)
+    : view.columns.length > 0;
+
+  const handleDownload = useCallback(() => {
+    if (view.isChart) {
+      const image = chartRef.current?.toImage();
+      if (!image) {
+        toast.error("Nothing to download — configure the chart first.");
+        return;
+      }
+      triggerDownload(image, `${baseName}.png`);
+      return;
+    }
+
+    if (view.columns.length === 0) {
+      toast.error("No data to download.");
+      return;
+    }
+    const csv = rowsToCsv(view.rows, view.columns);
+    const blobUrl = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+    );
+    triggerDownload(blobUrl, `${baseName}.csv`);
+    URL.revokeObjectURL(blobUrl);
+  }, [view, baseName]);
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
@@ -355,27 +414,38 @@ function DataView({ result }: { result: PipelineResult | null }) {
             </Badge>
           ) : null}
         </div>
-        <Button
-          size="sm"
-          variant={frozen ? "default" : "outline"}
-          onClick={toggleFrozen}
-        >
-          {frozen ? (
-            <>
-              <PlayIcon data-icon="inline-start" />
-              Resume
-            </>
-          ) : (
-            <>
-              <SnowflakeIcon data-icon="inline-start" />
-              Freeze
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDownload}
+            disabled={!canDownload}
+          >
+            <DownloadIcon data-icon="inline-start" />
+            {view.isChart ? "PNG" : "CSV"}
+          </Button>
+          <Button
+            size="sm"
+            variant={frozen ? "default" : "outline"}
+            onClick={toggleFrozen}
+          >
+            {frozen ? (
+              <>
+                <PlayIcon data-icon="inline-start" />
+                Resume
+              </>
+            ) : (
+              <>
+                <SnowflakeIcon data-icon="inline-start" />
+                Freeze
+              </>
+            )}
+          </Button>
+        </div>
       </div>
       <div className="min-h-0 flex-1">
         {view.isChart && view.chartSettings ? (
-          <ChartView data={view.rows} settings={view.chartSettings} />
+          <ChartView ref={chartRef} data={view.rows} settings={view.chartSettings} />
         ) : (
           <DataTable data={view.rows} columns={view.columns} />
         )}
