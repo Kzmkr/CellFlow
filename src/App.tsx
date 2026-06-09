@@ -15,6 +15,8 @@ import { ActionGrid } from "@/components/action-grid";
 import { PropertiesPanel } from "@/components/properties-panel";
 import Flow from "@/components/flow";
 import { useUndoRedo } from "@/components/node-handler";
+import { SaveWorkflowDialog } from "@/components/save-workflow-dialog";
+import { OpenWorkflowDialog } from "@/components/open-workflow-dialog";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import { FlowStoreProvider, useFlowStore } from "@/lib/flow-store";
@@ -24,8 +26,11 @@ import {
   pasteNodeFromClipboard,
   type NodeClipboard,
 } from "../lib/node-clipboard";
-import { NodeAttributeStoreProvider } from "@/lib/node-attribute-store";
+import { NodeAttributeStoreProvider, useNodeAttributeStore } from "@/lib/node-attribute-store";
+import { runPipeline, type PipelineResult } from "@/lib/pipeline-engine";
+import { getWorkflow } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { Toaster, toast } from "sonner";
 
 type PanelKey = "nodes" | "properties" | "table";
 
@@ -39,6 +44,7 @@ type EditorTab = {
   id: string;
   title: string;
   panels: TabPanels;
+  workflowId?: string;
 };
 
 const DEFAULT_TAB_PANELS: TabPanels = {
@@ -83,16 +89,9 @@ function UndoRedoBridge({
 
   useEffect(() => {
     if (!active || isDragging) return;
-    console.log("UndoRedoBridge register", { active, nodes, edges });
     onRegister({
-      undo: () => {
-        undo();
-        console.log("undo called");
-      },
-      redo: () => {
-        redo();
-        console.log("redo called");
-      },
+      undo,
+      redo,
     });
   }, [active, undo, redo, onRegister, nodes, edges, isDragging]);
 
@@ -151,11 +150,150 @@ function ClipboardBridge({
   return null;
 }
 
+function PipelineRunner({ active, onResult }: { active: boolean; onResult: (result: PipelineResult) => void }) {
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const selectedNodeId = useFlowStore((state) => state.selectedNodeId);
+  const nodeValues = useNodeAttributeStore((state) => state.nodeValues);
+  const nodeFiles = useNodeAttributeStore((state) => state.nodeFiles);
+
+  useEffect(() => {
+    function handleRun() {
+      if (!active) return;
+      const isScoped = Boolean(selectedNodeId);
+      toast.promise(
+        runPipeline(nodes, edges, nodeValues, nodeFiles, selectedNodeId).then((res) => {
+          onResult(res);
+          if (!res.success) throw new Error(res.error);
+          return res;
+        }),
+        {
+          loading: isScoped ? "Running pipeline to selected node..." : "Running pipeline...",
+          success: (res) => `Pipeline complete: ${res.rows.length} rows`,
+          error: (err) => `Pipeline failed: ${err.message}`,
+        }
+      );
+    }
+    window.addEventListener("pipeline:run", handleRun);
+    return () => window.removeEventListener("pipeline:run", handleRun);
+  }, [active, nodes, edges, selectedNodeId, nodeValues, nodeFiles, onResult]);
+
+  // Auto-preview the selected node's state, like the properties panel updating
+  // on selection. Runs quietly (no toast) and ignores stale results.
+  useEffect(() => {
+    if (!active || !selectedNodeId) return;
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      runPipeline(nodes, edges, nodeValues, nodeFiles, selectedNodeId).then(
+        (res) => {
+          if (!cancelled) onResult(res);
+        }
+      );
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [active, selectedNodeId, nodes, edges, nodeValues, nodeFiles, onResult]);
+
+  return null;
+}
+
+function SaveLoadBridge({
+  active,
+  tabId,
+  workflowId,
+  title,
+  onUpdateTab,
+  onRegister,
+}: {
+  active: boolean;
+  tabId: string;
+  workflowId?: string;
+  title: string;
+  onUpdateTab: (tabId: string, updates: Partial<EditorTab>) => void;
+  onRegister: (handlers: {
+    triggerSave: () => void;
+    triggerOpen: () => void;
+  }) => void;
+}) {
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const nodeValues = useNodeAttributeStore((state) => state.nodeValues);
+  const loadWorkflow = useFlowStore((state) => state.loadWorkflow);
+  const bulkSetNodeValues = useNodeAttributeStore((state) => state.bulkSetNodeValues);
+
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [openOpen, setOpenOpen] = useState(false);
+
+  const triggerSave = useCallback(() => {
+    if (!active) return;
+    setSaveOpen(true);
+  }, [active]);
+
+  const triggerOpen = useCallback(() => {
+    if (!active) return;
+    setOpenOpen(true);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    onRegister({ triggerSave, triggerOpen });
+  }, [active, triggerSave, triggerOpen, onRegister]);
+
+  const handleOpenSelect = useCallback(
+    async (id: string) => {
+      try {
+        const workflow = await getWorkflow(id);
+        loadWorkflow(workflow.nodes as any, workflow.edges as any);
+        bulkSetNodeValues(workflow.node_values as any);
+        onUpdateTab(tabId, { title: workflow.name, workflowId: workflow.id });
+        toast.success("Workflow loaded");
+      } catch (err) {
+        toast.error(`Failed to load workflow: ${(err as Error).message}`);
+      }
+    },
+    [loadWorkflow, bulkSetNodeValues, onUpdateTab, tabId]
+  );
+
+  const handleSaved = useCallback(
+    (id: string, name: string) => {
+      onUpdateTab(tabId, { title: name, workflowId: id });
+      toast.success("Workflow saved");
+    },
+    [onUpdateTab, tabId]
+  );
+
+  return (
+    <>
+      <SaveWorkflowDialog
+        open={saveOpen}
+        onOpenChange={setSaveOpen}
+        workflowId={workflowId ?? null}
+        defaultName={title}
+        nodes={nodes}
+        edges={edges}
+        nodeValues={nodeValues}
+        onSaved={handleSaved}
+      />
+      <OpenWorkflowDialog
+        open={openOpen}
+        onOpenChange={setOpenOpen}
+        onSelect={handleOpenSelect}
+      />
+    </>
+  );
+}
+
 function TabWorkspace({
   tab,
   active,
   onRegisterUndoRedo,
   onRegisterClipboard,
+  onRegisterSaveLoad,
+  onUpdateTab,
 }: {
   tab: EditorTab;
   active: boolean;
@@ -165,11 +303,17 @@ function TabWorkspace({
     cut: () => void;
     paste: () => void;
   }) => void;
+  onRegisterSaveLoad: (handlers: {
+    triggerSave: () => void;
+    triggerOpen: () => void;
+  }) => void;
+  onUpdateTab: (tabId: string, updates: Partial<EditorTab>) => void;
 }) {
   const showNodes = tab.panels.nodes;
   const showProperties = tab.panels.properties;
   const showTable = tab.panels.table;
   const bottomVisible = showNodes || showTable;
+  const [pipelineResult, setPipelineResult] = useState<PipelineResult | null>(null);
 
   return (
     <div
@@ -183,6 +327,15 @@ function TabWorkspace({
         <UndoRedoBridge active={active} onRegister={onRegisterUndoRedo} />
         <ClipboardBridge active={active} onRegister={onRegisterClipboard} />
         <NodeAttributeStoreProvider>
+          <SaveLoadBridge
+            active={active}
+            tabId={tab.id}
+            workflowId={tab.workflowId}
+            title={tab.title}
+            onUpdateTab={onUpdateTab}
+            onRegister={onRegisterSaveLoad}
+          />
+          <PipelineRunner active={active} onResult={setPipelineResult} />
           <ResizablePanelGroup direction="vertical" className="h-full w-full">
             <ResizablePanel defaultSize={70} minSize={3}>
               <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -215,7 +368,10 @@ function TabWorkspace({
 
                   {showTable && (
                     <ResizablePanel minSize={10}>
-                      <DataTable />
+                      <DataTable
+                        data={pipelineResult?.rows ?? []}
+                        columns={pipelineResult?.columns ?? []}
+                      />
                     </ResizablePanel>
                   )}
                 </ResizablePanelGroup>
@@ -249,6 +405,13 @@ function EditorLayout() {
     cut: () => {},
     paste: () => {},
   });
+  const [activeSaveLoad, setActiveSaveLoad] = useState<{
+    triggerSave: () => void;
+    triggerOpen: () => void;
+  }>({
+    triggerSave: () => {},
+    triggerOpen: () => {},
+  });
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const activePanels = activeTab?.panels ?? {
@@ -258,7 +421,6 @@ function EditorLayout() {
   };
 
   function openTab() {
-    console.log("App openTab called");
     const tab = createTab(nextTabNumberRef.current);
     nextTabNumberRef.current += 1;
     setTabs((currentTabs) => [...currentTabs, tab]);
@@ -266,7 +428,6 @@ function EditorLayout() {
   }
 
   function closeTab(tabId: string) {
-    console.log("App closeTab called", tabId);
     setTabs((currentTabs) => {
       const closingIndex = currentTabs.findIndex((tab) => tab.id === tabId);
       if (closingIndex < 0) {
@@ -293,7 +454,6 @@ function EditorLayout() {
   }
 
   function updateActiveTabPanel(panel: PanelKey, value: boolean) {
-    console.log("App updateActiveTabPanel called", panel, value);
     if (!activeTabId) {
       return;
     }
@@ -307,8 +467,17 @@ function EditorLayout() {
     );
   }
 
+  const updateTab = useCallback((tabId: string, updates: Partial<EditorTab>) => {
+    setTabs((currentTabs) =>
+      currentTabs.map((tab) =>
+        tab.id === tabId ? { ...tab, ...updates } : tab
+      )
+    );
+  }, []);
+
   return (
     <div className="flex min-h-screen w-full flex-col">
+      <Toaster position="top-right" />
       <AppMenubar
         onNewTab={openTab}
         onUndo={activeUndoRedo.undo}
@@ -316,6 +485,8 @@ function EditorLayout() {
         onCut={activeClipboard.cut}
         onCopy={activeClipboard.copy}
         onPaste={activeClipboard.paste}
+        onSaveWorkflow={activeSaveLoad.triggerSave}
+        onOpenWorkflow={activeSaveLoad.triggerOpen}
         showNodes={activePanels.nodes}
         showProperties={activePanels.properties}
         showTable={activePanels.table}
@@ -344,6 +515,8 @@ function EditorLayout() {
             active={tab.id === activeTabId}
             onRegisterUndoRedo={setActiveUndoRedo}
             onRegisterClipboard={setActiveClipboard}
+            onRegisterSaveLoad={setActiveSaveLoad}
+            onUpdateTab={updateTab}
           />
         ))}
       </div>
