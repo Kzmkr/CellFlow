@@ -1,5 +1,13 @@
 import { Handle, Position } from "@xyflow/react";
-import { ChartColumnIcon, DatabaseIcon, FileInputIcon, GitMergeIcon, WandSparklesIcon } from "lucide-react";
+import {
+  ChartColumnIcon,
+  DatabaseIcon,
+  FileInputIcon,
+  GitMergeIcon,
+  ListMinusIcon,
+  ListPlusIcon,
+  WandSparklesIcon,
+} from "lucide-react";
 
 import {
   BaseNode,
@@ -26,6 +34,8 @@ const iconMap = {
   database: DatabaseIcon,
   join: GitMergeIcon,
   chart: ChartColumnIcon,
+  "add-column": ListPlusIcon,
+  "delete-column": ListMinusIcon,
 };
 
 function toPosition(position: NodeHandlePosition): Position {
@@ -66,6 +76,16 @@ function getPreviewLine(kind: NodeKind, values: Record<string, string | number |
   if (kind === "chart") {
     const chartType = String(values.chartType ?? "bar");
     return `Type: ${toTitleCase(chartType)}`;
+  }
+
+  if (kind === "addColumn") {
+    const name = String(values.columnName ?? "").trim();
+    return name.length > 0 ? `+ ${name}` : "No column name";
+  }
+
+  if (kind === "deleteColumn") {
+    const column = String(values.column ?? "").trim();
+    return column.length > 0 ? `− ${column}` : "No column selected";
   }
 
   if (kind === "transform") {

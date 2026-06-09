@@ -42,7 +42,7 @@ export type NodeField =
 
 export type NodeDefinition = {
   title: string;
-  icon: "file-input" | "wand" | "database" | "join" | "chart";
+  icon: "file-input" | "wand" | "database" | "join" | "chart" | "add-column" | "delete-column";
   colorClassName: string;
   handles: Array<{
     type: "source" | "target";
@@ -200,6 +200,66 @@ export const NODE_REGISTRY = {
         label: "Right Key",
         defaultValue: "id",
         required: true,
+      },
+    ],
+  },
+  addColumn: {
+    title: "Add Column",
+    icon: "add-column",
+    colorClassName: "border-teal-500/30 bg-teal-500/8 text-teal-900",
+    handles: [
+      { type: "target", position: "left" },
+      { type: "source", position: "right" },
+    ],
+    attributes: [
+      {
+        type: "text",
+        key: "label",
+        label: "Label",
+        defaultValue: "Add Column",
+        required: true,
+      },
+      {
+        type: "text",
+        key: "columnName",
+        label: "Column Name",
+        defaultValue: "new_column",
+        required: true,
+        placeholder: "new_column",
+      },
+      {
+        type: "textarea",
+        key: "expression",
+        label: "Expression",
+        description:
+          "SQL expression over existing columns, e.g. price * quantity or first_name || ' ' || last_name.",
+        defaultValue: "",
+        placeholder: "price * quantity",
+      },
+    ],
+  },
+  deleteColumn: {
+    title: "Delete Column",
+    icon: "delete-column",
+    colorClassName: "border-orange-500/30 bg-orange-500/8 text-orange-900",
+    handles: [
+      { type: "target", position: "left" },
+      { type: "source", position: "right" },
+    ],
+    attributes: [
+      {
+        type: "text",
+        key: "label",
+        label: "Label",
+        defaultValue: "Delete Column",
+        required: true,
+      },
+      {
+        type: "text",
+        key: "column",
+        label: "Column",
+        defaultValue: "",
+        placeholder: "Select a column",
       },
     ],
   },

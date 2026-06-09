@@ -73,7 +73,11 @@ export function PropertiesPanel() {
     selectedNode?.data.kind === "transform" &&
     String((selectedNodeId && nodeValues[selectedNodeId]?.mode) ?? "sql") ===
       "filter";
-  const needsInputColumns = filterMode || selectedNode?.data.kind === "chart";
+  const needsInputColumns =
+    filterMode ||
+    selectedNode?.data.kind === "chart" ||
+    selectedNode?.data.kind === "addColumn" ||
+    selectedNode?.data.kind === "deleteColumn";
 
   useEffect(() => {
     if (!needsInputColumns || !selectedNodeId) {
@@ -171,6 +175,12 @@ export function PropertiesPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         <FieldGroup>
+          {selectedNode.data.kind === "addColumn" && inputColumns.length > 0 ? (
+            <div className="rounded-md border border-border/70 bg-background/70 p-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Available columns: </span>
+              {inputColumns.join(", ")}
+            </div>
+          ) : null}
           {definition.attributes.map((field) => {
             const fieldId = `${selectedNodeId}-${field.key}`;
             const currentValue = values[field.key] ?? field.defaultValue;
@@ -183,7 +193,8 @@ export function PropertiesPanel() {
             const isColumnDropdown =
               field.key === "filterColumn" ||
               field.key === "xColumn" ||
-              field.key === "yColumn";
+              field.key === "yColumn" ||
+              field.key === "column";
 
             if (needsInputColumns && isColumnDropdown) {
               const selectedColumn = String(currentValue);

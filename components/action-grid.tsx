@@ -5,6 +5,8 @@ import {
   DatabaseIcon,
   FileInputIcon,
   GitMergeIcon,
+  ListMinusIcon,
+  ListPlusIcon,
   WandSparklesIcon,
 } from "lucide-react";
 
@@ -19,6 +21,8 @@ const iconMap = {
   database: DatabaseIcon,
   join: GitMergeIcon,
   chart: ChartColumnIcon,
+  "add-column": ListPlusIcon,
+  "delete-column": ListMinusIcon,
 };
 
 export function ActionGrid() {

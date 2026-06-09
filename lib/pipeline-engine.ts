@@ -315,6 +315,67 @@ export async function runPipeline(
         }
       }
 
+      if (node.data.kind === "addColumn") {
+        const preds = getPredecessors(node.id, edges);
+        const predTable = preds
+          .map((p) => resultTableByNode.get(p))
+          .find((table): table is string => Boolean(table));
+
+        if (!predTable) {
+          logs.push(`[${node.id}] addColumn: no input table`);
+          return {
+            success: false,
+            rows: [],
+            columns: [],
+            error: `Add Column node ${node.id} has no valid input. Connect a node that produces data.`,
+            logs,
+          };
+        }
+
+        const name = String(values.columnName ?? "").trim();
+        if (!name) {
+          logs.push(`[${node.id}] addColumn: no column name, passing through`);
+          await createOrReplaceTable(tableName, `SELECT * FROM ${predTable}`);
+        } else {
+          const expression = String(values.expression ?? "").trim();
+          const valueExpr = expression.length > 0 ? `(${expression})` : "NULL";
+          const sql = `SELECT *, ${valueExpr} AS ${quoteIdentifier(name)} FROM ${predTable}`;
+          await createOrReplaceTable(tableName, sql);
+          logs.push(`[${node.id}] addColumn: added ${name}`);
+        }
+        resultTableByNode.set(node.id, tableName);
+      }
+
+      if (node.data.kind === "deleteColumn") {
+        const preds = getPredecessors(node.id, edges);
+        const predTable = preds
+          .map((p) => resultTableByNode.get(p))
+          .find((table): table is string => Boolean(table));
+
+        if (!predTable) {
+          logs.push(`[${node.id}] deleteColumn: no input table`);
+          return {
+            success: false,
+            rows: [],
+            columns: [],
+            error: `Delete Column node ${node.id} has no valid input. Connect a node that produces data.`,
+            logs,
+          };
+        }
+
+        const column = String(values.column ?? "").trim();
+        const sql = column
+          ? `SELECT * EXCLUDE (${quoteIdentifier(column)}) FROM ${predTable}`
+          : `SELECT * FROM ${predTable}`;
+        await createOrReplaceTable(tableName, sql);
+        resultTableByNode.set(node.id, tableName);
+        logs.push(
+          column
+            ? `[${node.id}] deleteColumn: removed ${column}`
+            : `[${node.id}] deleteColumn: no column selected, passing through`
+        );
+      }
+
       if (node.data.kind === "join") {
         const preds = getPredecessors(node.id, edges);
         if (preds.length < 2) {
