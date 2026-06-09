@@ -314,6 +314,23 @@ function TabWorkspace({
   const showTable = tab.panels.table;
   const bottomVisible = showNodes || showTable;
   const [pipelineResult, setPipelineResult] = useState<PipelineResult | null>(null);
+  const [frozen, setFrozen] = useState(false);
+  const frozenRef = useRef(false);
+
+  // When frozen, the table keeps its current contents and ignores any new
+  // pipeline results (auto-preview or manual runs).
+  const handleResult = useCallback((result: PipelineResult) => {
+    if (frozenRef.current) return;
+    setPipelineResult(result);
+  }, []);
+
+  const toggleFrozen = useCallback(() => {
+    setFrozen((current) => {
+      const next = !current;
+      frozenRef.current = next;
+      return next;
+    });
+  }, []);
 
   return (
     <div
@@ -335,7 +352,7 @@ function TabWorkspace({
             onUpdateTab={onUpdateTab}
             onRegister={onRegisterSaveLoad}
           />
-          <PipelineRunner active={active} onResult={setPipelineResult} />
+          <PipelineRunner active={active} onResult={handleResult} />
           <ResizablePanelGroup direction="vertical" className="h-full w-full">
             <ResizablePanel defaultSize={70} minSize={3}>
               <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -371,6 +388,8 @@ function TabWorkspace({
                       <DataTable
                         data={pipelineResult?.rows ?? []}
                         columns={pipelineResult?.columns ?? []}
+                        frozen={frozen}
+                        onToggleFreeze={toggleFrozen}
                       />
                     </ResizablePanel>
                   )}

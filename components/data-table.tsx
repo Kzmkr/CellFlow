@@ -1,3 +1,5 @@
+import { PlayIcon, SnowflakeIcon } from "lucide-react"
+
 import {
   Table,
   TableHeader,
@@ -7,53 +9,95 @@ import {
   TableCell,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
-const data = [
-  { id: 1, name: "John Doe", email: "john@example.com", status: "Active", role: "Admin" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", status: "Active", role: "User" },
-  { id: 3, name: "Bob Johnson", email: "bob@example.com", status: "Inactive", role: "User" },
-  { id: 4, name: "Alice Brown", email: "alice@example.com", status: "Active", role: "Editor" },
-  { id: 5, name: "Charlie Wilson", email: "charlie@example.com", status: "Pending", role: "User" },
-  { id: 6, name: "Diana Lee", email: "diana@example.com", status: "Active", role: "Admin" },
-]
+export type DataTableProps = {
+  data: Record<string, unknown>[]
+  columns: string[]
+  frozen?: boolean
+  onToggleFreeze?: () => void
+}
 
-export function DataTable() {
+export function DataTable({ data, columns, frozen, onToggleFreeze }: DataTableProps) {
+  const toolbar = onToggleFreeze ? (
+    <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="font-medium text-foreground tabular-nums">{data.length}</span>
+        <span>rows</span>
+        {frozen ? (
+          <Badge variant="secondary" className="gap-1">
+            <SnowflakeIcon className="size-3" />
+            Frozen
+          </Badge>
+        ) : null}
+      </div>
+      <Button
+        size="sm"
+        variant={frozen ? "default" : "outline"}
+        onClick={onToggleFreeze}
+      >
+        {frozen ? (
+          <>
+            <PlayIcon data-icon="inline-start" />
+            Resume
+          </>
+        ) : (
+          <>
+            <SnowflakeIcon data-icon="inline-start" />
+            Freeze
+          </>
+        )}
+      </Button>
+    </div>
+  ) : null
+
+  if (columns.length === 0) {
+    return (
+      <div className="flex h-full flex-col">
+        {toolbar}
+        <div className="flex flex-1 items-center justify-center p-4 text-sm text-muted-foreground">
+          No data to display. Run the pipeline to see results.
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="h-full overflow-auto p-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>ID</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Role</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="font-medium">{row.id}</TableCell>
-              <TableCell>{row.name}</TableCell>
-              <TableCell>{row.email}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    row.status === "Active"
-                      ? "default"
-                      : row.status === "Inactive"
-                        ? "secondary"
-                        : "outline"
-                  }
-                >
-                  {row.status}
-                </Badge>
-              </TableCell>
-              <TableCell>{row.role}</TableCell>
+    <div className="flex h-full flex-col">
+      {toolbar}
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.map((col) => (
+                <TableHead key={col}>{col}</TableHead>
+              ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {data.map((row, i) => (
+              <TableRow key={i}>
+                {columns.map((col) => {
+                  const val = row[col]
+                  const str = val == null ? "" : String(val)
+                  const isBoolean = typeof val === "boolean"
+                  const boolLabel = isBoolean ? (val ? "true" : "false") : str
+
+                  return (
+                    <TableCell key={col} className="font-medium">
+                      {isBoolean ? (
+                        <Badge variant={val ? "default" : "secondary"}>{boolLabel}</Badge>
+                      ) : (
+                        str
+                      )}
+                    </TableCell>
+                  )
+                })}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
