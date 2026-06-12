@@ -18,6 +18,7 @@ import {
 
 type AttributeState = {
   nodeValues: Record<string, NodeValues>;
+  nodeFiles: Record<string, File>;
   ensureNodeDefaults: (nodeId: string, kind: NodeKind) => void;
   setNodeValue: (
     nodeId: string,
@@ -25,7 +26,11 @@ type AttributeState = {
     key: string,
     value: string | number | boolean,
   ) => void;
+  setNodeFile: (nodeId: string, file: File | null) => void;
+  getNodeFile: (nodeId: string) => File | undefined;
   getNodeErrors: (nodeId: string, kind: NodeKind) => Record<string, string>;
+  bulkSetNodeValues: (values: Record<string, NodeValues>) => void;
+  resetStore: () => void;
 };
 
 export type NodeAttributeStore = StoreApi<AttributeState>;
@@ -89,6 +94,7 @@ function fieldHasError(field: NodeField, value: unknown): string | null {
 export function createNodeAttributeStore(): NodeAttributeStore {
   return createStore<AttributeState>((set, get) => ({
     nodeValues: {},
+    nodeFiles: {},
     ensureNodeDefaults: (nodeId, kind) => {
       set((state) => {
         if (state.nodeValues[nodeId]) {
@@ -120,6 +126,20 @@ export function createNodeAttributeStore(): NodeAttributeStore {
         },
       }));
     },
+    setNodeFile: (nodeId, file) => {
+      set((state) => {
+        const next = { ...state.nodeFiles };
+        if (file) {
+          next[nodeId] = file;
+        } else {
+          delete next[nodeId];
+        }
+        return { nodeFiles: next };
+      });
+    },
+    getNodeFile: (nodeId) => {
+      return get().nodeFiles[nodeId];
+    },
     getNodeErrors: (nodeId, kind) => {
       const definition = getNodeDefinition(kind);
       const values = get().nodeValues[nodeId] ?? getDefaultValues(kind);
@@ -134,6 +154,12 @@ export function createNodeAttributeStore(): NodeAttributeStore {
         },
         {},
       );
+    },
+    bulkSetNodeValues: (values) => {
+      set({ nodeValues: values });
+    },
+    resetStore: () => {
+      set({ nodeValues: {}, nodeFiles: {} });
     },
   }));
 }

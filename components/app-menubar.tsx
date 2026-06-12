@@ -29,6 +29,8 @@ type AppMenubarProps = {
   onCut?: () => void;
   onCopy?: () => void;
   onPaste?: () => void;
+  onSaveWorkflow?: () => void;
+  onOpenWorkflow?: () => void;
   onTogglePanel: (
     panel: "nodes" | "properties" | "table",
     value: boolean,
@@ -45,6 +47,8 @@ export function AppMenubar({
   onCut,
   onCopy,
   onPaste,
+  onSaveWorkflow,
+  onOpenWorkflow,
   onTogglePanel,
 }: AppMenubarProps) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -100,6 +104,16 @@ export function AppMenubar({
           onPaste?.();
           return;
         }
+        if (key === "s") {
+          e.preventDefault();
+          onSaveWorkflow?.();
+          return;
+        }
+        if (key === "o") {
+          e.preventDefault();
+          onOpenWorkflow?.();
+          return;
+        }
       }
 
       if (e.key == "F11") {
@@ -110,7 +124,7 @@ export function AppMenubar({
     document.addEventListener("keydown", onKeyDown, { capture: true });
     return () =>
       document.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [onNewTab, onCut, onCopy, onPaste]);
+  }, [onNewTab, onCut, onCopy, onPaste, onSaveWorkflow, onOpenWorkflow]);
 
   return (
     <div className="shrink-0 bg-muted/30">
@@ -125,6 +139,13 @@ export function AppMenubar({
               <MenubarSeparator />
               <MenubarItem onSelect={handleRun}>
                 Run <MenubarShortcut>Ctrl+Enter</MenubarShortcut>
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={onSaveWorkflow}>
+                Save Workflow <MenubarShortcut>Ctrl+S</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem onSelect={onOpenWorkflow}>
+                Open Workflow <MenubarShortcut>Ctrl+O</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>

@@ -44,6 +44,8 @@ type FlowState = {
   applySnapshot: (snapshot: FlowSnapshot<RegistryFlowNode, Edge>) => void;
   selectNode: (nodeId: string | null) => void;
   setOnSnapshot: (callback: ((snapshot?: FlowSnapshot<RegistryFlowNode, Edge>) => void) | undefined) => void;
+  loadWorkflow: (nodes: RegistryFlowNode[], edges: Edge[]) => void;
+  exportWorkflow: () => FlowSnapshot<RegistryFlowNode, Edge>;
 };
 
 export type FlowStore = StoreApi<FlowState>;
@@ -117,7 +119,7 @@ export function createFlowStore(): FlowStore {
   const initialNodes = createInitialNodes();
   const initialEdges = createInitialEdges();
 
-  return createStore<FlowState>((set) => ({
+  return createStore<FlowState>((set, get) => ({
     nodes: initialNodes,
     edges: initialEdges,
     selectedNodeId: initialNodes[0]?.id ?? null,
@@ -240,6 +242,21 @@ export function createFlowStore(): FlowStore {
     setOnSnapshot: (callback) => set({ onSnapshot: callback }),
     selectNode: (nodeId) => {
       set({ selectedNodeId: nodeId });
+    },
+    loadWorkflow: (nodes: RegistryFlowNode[], edges: Edge[]) => {
+      const snapshot = takeSnapshot<RegistryFlowNode, Edge>(nodes, edges);
+      set({
+        nodes,
+        edges,
+        selectedNodeId: nodes[0]?.id ?? null,
+        lastSnapshot: snapshot,
+      });
+    },
+    exportWorkflow: () => {
+      return takeSnapshot<RegistryFlowNode, Edge>(
+        get().nodes,
+        get().edges
+      );
     },
   }));
 }
