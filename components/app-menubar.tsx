@@ -86,23 +86,42 @@ export function AppMenubar({
         return;
       }
 
-      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+      const isModifierKey = e.ctrlKey || e.metaKey;
+      if (isModifierKey && !e.altKey) {
         const key = e.key.toLowerCase();
 
-        if (key === "x") {
+        if (key === "z") {
           e.preventDefault();
-          onCut?.();
+          if (e.shiftKey) {
+            onRedo?.();
+          } else {
+            onUndo?.();
+          }
           return;
         }
-        if (key === "c") {
+
+        if (key === "y") {
           e.preventDefault();
-          onCopy?.();
+          onRedo?.();
           return;
         }
-        if (key === "v") {
-          e.preventDefault();
-          onPaste?.();
-          return;
+
+        if (!e.shiftKey) {
+          if (key === "x") {
+            e.preventDefault();
+            onCut?.();
+            return;
+          }
+          if (key === "c") {
+            e.preventDefault();
+            onCopy?.();
+            return;
+          }
+          if (key === "v") {
+            e.preventDefault();
+            onPaste?.();
+            return;
+          }
         }
         if (key === "s") {
           e.preventDefault();
@@ -124,7 +143,11 @@ export function AppMenubar({
     document.addEventListener("keydown", onKeyDown, { capture: true });
     return () =>
       document.removeEventListener("keydown", onKeyDown, { capture: true });
+<<<<<<< HEAD
   }, [onNewTab, onCut, onCopy, onPaste, onSaveWorkflow, onOpenWorkflow]);
+=======
+  }, [onNewTab, onUndo, onRedo, onCut, onCopy, onPaste]);
+>>>>>>> 36d28400fb15c27c0ddc4f1823150d523d1b2a34
 
   return (
     <div className="shrink-0 bg-muted/30">
