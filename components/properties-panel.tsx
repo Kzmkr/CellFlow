@@ -33,7 +33,11 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useFlowStore } from "@/lib/flow-store";
 import { useNodeAttributeStore } from "@/lib/node-attribute-store";
-import { getDefaultValues, getNodeDefinition } from "@/lib/node-registry";
+import {
+  buildConversionExpression,
+  getDefaultValues,
+  getNodeDefinition,
+} from "@/lib/node-registry";
 
 const stats = [
   { label: "Rows", value: "2k" },
@@ -89,6 +93,7 @@ export function PropertiesPanel() {
     db: ["mysql", "postgres"],
     file: ["json", "csv", "parquet"],
   };
+  const isConversionNode = selectedNode.data.kind === "conversion";
 
   return (
     <div className="flex h-full flex-col bg-muted/50 p-4">
@@ -159,6 +164,22 @@ export function PropertiesPanel() {
                         const currentTarget = String(values.target ?? "");
                         if (!allowedTargets.includes(currentTarget)) {
                           setNodeValue(selectedNodeId, selectedNode.data.kind, "target", allowedTargets[0]);
+                        }
+                      }
+
+                      if (isConversionNode && (field.key === "preset" || field.key === "column")) {
+                        const nextPreset = field.key === "preset" ? value : String(values.preset ?? "");
+                        const nextColumn = field.key === "column" ? value : String(values.column ?? "");
+                        // "Custom" means the expression is fully hand-owned: selecting it
+                        // (or changing the column while it's active) never overwrites
+                        // whatever the user already typed.
+                        if (nextPreset !== "custom") {
+                          setNodeValue(
+                            selectedNodeId,
+                            selectedNode.data.kind,
+                            "expression",
+                            buildConversionExpression(nextPreset, nextColumn),
+                          );
                         }
                       }
                     }}

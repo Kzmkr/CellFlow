@@ -42,7 +42,7 @@ export type NodeField =
 
 export type NodeDefinition = {
   title: string;
-  icon: "file-input" | "wand" | "database" | "join";
+  icon: "file-input" | "wand" | "database" | "join" | "convert";
   colorClassName: string;
   handles: Array<{
     type: "source" | "target";
@@ -50,6 +50,80 @@ export type NodeDefinition = {
   }>;
   attributes: NodeField[];
 };
+
+// Columns exposed by the demo dataset shown in the data table preview.
+export const CONVERSION_COLUMNS: Array<{ value: string; label: string }> = [
+  { value: "id", label: "ID" },
+  { value: "name", label: "Name" },
+  { value: "email", label: "Email" },
+  { value: "status", label: "Status" },
+  { value: "role", label: "Role" },
+];
+
+export type ConversionPreset = {
+  value: string;
+  label: string;
+  group: string;
+  expression: (column: string) => string;
+};
+
+export const CONVERSION_PRESETS: ConversionPreset[] = [
+  // Text
+  { value: "uppercase", label: "Uppercase", group: "Text", expression: (c) => `UPPER(${c})` },
+  { value: "lowercase", label: "Lowercase", group: "Text", expression: (c) => `LOWER(${c})` },
+  { value: "titleCase", label: "Title Case", group: "Text", expression: (c) => `INITCAP(${c})` },
+  { value: "trim", label: "Trim Whitespace", group: "Text", expression: (c) => `TRIM(${c})` },
+  { value: "reverse", label: "Reverse", group: "Text", expression: (c) => `REVERSE(${c})` },
+  { value: "slugify", label: "Slugify", group: "Text", expression: (c) => `SLUGIFY(${c})` },
+  { value: "stripHtml", label: "Strip HTML", group: "Text", expression: (c) => `STRIP_HTML(${c})` },
+  // Type casting
+  { value: "toInteger", label: "To Integer", group: "Type", expression: (c) => `CAST(${c} AS INTEGER)` },
+  { value: "toDecimal", label: "To Decimal", group: "Type", expression: (c) => `CAST(${c} AS DECIMAL(18,2))` },
+  { value: "toText", label: "To Text", group: "Type", expression: (c) => `CAST(${c} AS TEXT)` },
+  { value: "toBoolean", label: "To Boolean", group: "Type", expression: (c) => `CAST(${c} AS BOOLEAN)` },
+  // Numeric
+  { value: "round", label: "Round (2dp)", group: "Numeric", expression: (c) => `ROUND(${c}, 2)` },
+  { value: "floor", label: "Floor", group: "Numeric", expression: (c) => `FLOOR(${c})` },
+  { value: "ceil", label: "Ceiling", group: "Numeric", expression: (c) => `CEIL(${c})` },
+  { value: "absolute", label: "Absolute Value", group: "Numeric", expression: (c) => `ABS(${c})` },
+  { value: "negate", label: "Negate", group: "Numeric", expression: (c) => `-${c}` },
+  // Date & time
+  { value: "toDate", label: "To Date", group: "Date & Time", expression: (c) => `CAST(${c} AS DATE)` },
+  { value: "toTimestamp", label: "To Timestamp", group: "Date & Time", expression: (c) => `CAST(${c} AS TIMESTAMP)` },
+  { value: "extractYear", label: "Extract Year", group: "Date & Time", expression: (c) => `EXTRACT(YEAR FROM ${c})` },
+  { value: "extractMonth", label: "Extract Month", group: "Date & Time", expression: (c) => `EXTRACT(MONTH FROM ${c})` },
+  { value: "extractDay", label: "Extract Day", group: "Date & Time", expression: (c) => `EXTRACT(DAY FROM ${c})` },
+  { value: "unixToTimestamp", label: "Unix Timestamp → Date", group: "Date & Time", expression: (c) => `TO_TIMESTAMP(${c})` },
+  // Encoding
+  { value: "base64Encode", label: "Base64 Encode", group: "Encoding", expression: (c) => `TO_BASE64(${c})` },
+  { value: "base64Decode", label: "Base64 Decode", group: "Encoding", expression: (c) => `FROM_BASE64(${c})` },
+  { value: "urlEncode", label: "URL Encode", group: "Encoding", expression: (c) => `URL_ENCODE(${c})` },
+  { value: "urlDecode", label: "URL Decode", group: "Encoding", expression: (c) => `URL_DECODE(${c})` },
+  { value: "jsonParse", label: "Parse JSON", group: "Encoding", expression: (c) => `PARSE_JSON(${c})` },
+  { value: "jsonStringify", label: "To JSON String", group: "Encoding", expression: (c) => `TO_JSON(${c})` },
+  // Unit conversion
+  { value: "celsiusToFahrenheit", label: "Celsius → Fahrenheit", group: "Units", expression: (c) => `(${c} * 9/5) + 32` },
+  { value: "fahrenheitToCelsius", label: "Fahrenheit → Celsius", group: "Units", expression: (c) => `(${c} - 32) * 5/9` },
+  { value: "kmToMiles", label: "Kilometers → Miles", group: "Units", expression: (c) => `${c} * 0.621371` },
+  { value: "milesToKm", label: "Miles → Kilometers", group: "Units", expression: (c) => `${c} * 1.60934` },
+  { value: "kgToLbs", label: "Kilograms → Pounds", group: "Units", expression: (c) => `${c} * 2.20462` },
+  { value: "lbsToKg", label: "Pounds → Kilograms", group: "Units", expression: (c) => `${c} * 0.453592` },
+  { value: "metersToFeet", label: "Meters → Feet", group: "Units", expression: (c) => `${c} * 3.28084` },
+  { value: "feetToMeters", label: "Feet → Meters", group: "Units", expression: (c) => `${c} * 0.3048` },
+  // Custom
+  { value: "custom", label: "Custom Expression", group: "Custom", expression: (c) => c },
+];
+
+export function getConversionPreset(value: string): ConversionPreset {
+  return (
+    CONVERSION_PRESETS.find((preset) => preset.value === value) ??
+    CONVERSION_PRESETS[0]
+  );
+}
+
+export function buildConversionExpression(presetValue: string, column: string): string {
+  return getConversionPreset(presetValue).expression(column || "column");
+}
 
 export const NODE_REGISTRY = {
   fileInput: {
@@ -162,6 +236,57 @@ export const NODE_REGISTRY = {
         key: "rightKey",
         label: "Right Key",
         defaultValue: "id",
+        required: true,
+      },
+    ],
+  },
+  conversion: {
+    title: "Conversion",
+    icon: "convert",
+    colorClassName: "border-rose-500/30 bg-rose-500/8 text-rose-900",
+    handles: [
+      { type: "target", position: "left" },
+      { type: "source", position: "right" },
+    ],
+    attributes: [
+      {
+        type: "text",
+        key: "label",
+        label: "Label",
+        defaultValue: "Conversion",
+        required: true,
+      },
+      {
+        type: "select",
+        key: "column",
+        label: "Column",
+        description: "The column this conversion is applied to.",
+        defaultValue: CONVERSION_COLUMNS[0].value,
+        options: CONVERSION_COLUMNS,
+        required: true,
+      },
+      {
+        type: "select",
+        key: "preset",
+        label: "Conversion",
+        description: "Pick a preset to prefill the expression below.",
+        defaultValue: CONVERSION_PRESETS[0].value,
+        options: CONVERSION_PRESETS.map((preset) => ({
+          value: preset.value,
+          label: preset.label,
+        })),
+        required: true,
+      },
+      {
+        type: "textarea",
+        key: "expression",
+        label: "Expression",
+        description: "Generated from the preset — edit freely to customize it.",
+        defaultValue: buildConversionExpression(
+          CONVERSION_PRESETS[0].value,
+          CONVERSION_COLUMNS[0].value,
+        ),
+        placeholder: "e.g. UPPER(column)",
         required: true,
       },
     ],

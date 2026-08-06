@@ -1,5 +1,11 @@
 import { Handle, Position } from "@xyflow/react";
-import { DatabaseIcon, FileInputIcon, GitMergeIcon, WandSparklesIcon } from "lucide-react";
+import {
+  ArrowRightLeftIcon,
+  DatabaseIcon,
+  FileInputIcon,
+  GitMergeIcon,
+  WandSparklesIcon,
+} from "lucide-react";
 
 import {
   BaseNode,
@@ -9,6 +15,7 @@ import {
 } from "@/components/base-node";
 import { cn } from "@/lib/utils";
 import {
+  getConversionPreset,
   getDefaultValues,
   getNodeDefinition,
   type NodeHandlePosition,
@@ -25,6 +32,7 @@ const iconMap = {
   wand: WandSparklesIcon,
   database: DatabaseIcon,
   join: GitMergeIcon,
+  convert: ArrowRightLeftIcon,
 };
 
 function toPosition(position: NodeHandlePosition): Position {
@@ -70,6 +78,12 @@ function getPreviewLine(kind: NodeKind, values: Record<string, string | number |
       .find((line) => line.length > 0);
 
     return firstLine ?? "No script";
+  }
+
+  if (kind === "conversion") {
+    const column = String(values.column ?? "");
+    const preset = getConversionPreset(String(values.preset ?? ""));
+    return column.length > 0 ? `${preset.label} · ${column}` : preset.label;
   }
 
   return "";

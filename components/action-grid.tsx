@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRightLeftIcon,
   DatabaseIcon,
   FileInputIcon,
   GitMergeIcon,
@@ -17,6 +18,7 @@ const iconMap = {
   wand: WandSparklesIcon,
   database: DatabaseIcon,
   join: GitMergeIcon,
+  convert: ArrowRightLeftIcon,
 };
 
 export function ActionGrid() {
