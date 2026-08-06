@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-import { SparklesIcon } from "lucide-react";
+import { FileDownIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Field,
@@ -38,11 +40,65 @@ import {
   getDefaultValues,
   getNodeDefinition,
 } from "@/lib/node-registry";
+import { DEMO_ROWS } from "@/lib/demo-data";
+import { renderTemplate } from "@/lib/document-template";
+import { compileTypstToPdf, compileTypstToSvg, TypstCompileError } from "@/lib/typst";
 
 const stats = [
   { label: "Rows", value: "2k" },
   { label: "Columns", value: "13" },
 ];
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug.length > 0 ? slug : "document";
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function generateDocumentsForRows(
+  template: string,
+  format: string,
+  baseName: string,
+): Promise<{ succeeded: number; failed: Array<{ rowId: number; message: string }> }> {
+  const failed: Array<{ rowId: number; message: string }> = [];
+  let succeeded = 0;
+
+  for (const row of DEMO_ROWS) {
+    const source = renderTemplate(template, row);
+    try {
+      if (format === "svg") {
+        const svg = await compileTypstToSvg(source);
+        downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `${baseName}-${row.id}.svg`);
+      } else {
+        const pdf = await compileTypstToPdf(source);
+        downloadBlob(
+          new Blob([new Uint8Array(pdf)], { type: "application/pdf" }),
+          `${baseName}-${row.id}.pdf`,
+        );
+      }
+      succeeded += 1;
+    } catch (error) {
+      const message =
+        error instanceof TypstCompileError ? error.message : "Failed to compile document.";
+      failed.push({ rowId: row.id, message });
+    }
+  }
+
+  return { succeeded, failed };
+}
 
 export function PropertiesPanel() {
   const selectedNodeId = useFlowStore((state) => state.selectedNodeId);
@@ -56,6 +112,8 @@ export function PropertiesPanel() {
   );
   const setNodeValue = useNodeAttributeStore((state) => state.setNodeValue);
   const getNodeErrors = useNodeAttributeStore((state) => state.getNodeErrors);
+
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     if (!selectedNodeId || !selectedNode) {
@@ -94,6 +152,40 @@ export function PropertiesPanel() {
     file: ["json", "csv", "parquet"],
   };
   const isConversionNode = selectedNode.data.kind === "conversion";
+  const isDocumentNode = selectedNode.data.kind === "document";
+
+  async function handleGenerateDocuments() {
+    const template = String(values.template ?? "");
+    const format = String(values.format ?? "pdf");
+    const baseName = slugify(String(values.label ?? "document"));
+
+    if (template.trim().length === 0) {
+      toast.error("Add a template before generating documents.");
+      return;
+    }
+
+    setIsGenerating(true);
+    const toastId = toast.loading(`Generating ${DEMO_ROWS.length} documents…`);
+    try {
+      const { succeeded, failed } = await generateDocumentsForRows(template, format, baseName);
+      if (failed.length === 0) {
+        toast.success(`Generated ${succeeded} document${succeeded === 1 ? "" : "s"}.`, {
+          id: toastId,
+        });
+      } else if (succeeded === 0) {
+        toast.error(`Failed to generate documents: ${failed[0].message}`, { id: toastId });
+      } else {
+        toast.warning(
+          `Generated ${succeeded} document${succeeded === 1 ? "" : "s"}, ${failed.length} failed.`,
+          { id: toastId },
+        );
+      }
+    } catch {
+      toast.error("Couldn't generate documents. Please try again.", { id: toastId });
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   return (
     <div className="flex h-full flex-col bg-muted/50 p-4">
@@ -345,6 +437,26 @@ export function PropertiesPanel() {
             return null;
           })}
         </FieldGroup>
+
+        {isDocumentNode ? (
+          <div className="mt-4 border-t pt-4">
+            <Button
+              className="w-full"
+              onClick={handleGenerateDocuments}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <Loader2Icon className="animate-spin" data-icon="inline-start" />
+              ) : (
+                <FileDownIcon data-icon="inline-start" />
+              )}
+              {isGenerating ? "Generating…" : `Generate ${DEMO_ROWS.length} Documents`}
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Compiles the template with Typst (WASM) once per row and downloads each result.
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { DEMO_ROW_KEYS } from "@/lib/demo-data";
+
 export type NodeHandlePosition = "top" | "right" | "bottom" | "left";
 
 export type NodeField =
@@ -42,7 +44,7 @@ export type NodeField =
 
 export type NodeDefinition = {
   title: string;
-  icon: "file-input" | "wand" | "database" | "join" | "convert";
+  icon: "file-input" | "wand" | "database" | "join" | "convert" | "document";
   colorClassName: string;
   handles: Array<{
     type: "source" | "target";
@@ -51,14 +53,13 @@ export type NodeDefinition = {
   attributes: NodeField[];
 };
 
+function toColumnLabel(key: string): string {
+  return key === "id" ? "ID" : key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 // Columns exposed by the demo dataset shown in the data table preview.
-export const CONVERSION_COLUMNS: Array<{ value: string; label: string }> = [
-  { value: "id", label: "ID" },
-  { value: "name", label: "Name" },
-  { value: "email", label: "Email" },
-  { value: "status", label: "Status" },
-  { value: "role", label: "Role" },
-];
+export const CONVERSION_COLUMNS: Array<{ value: string; label: string }> =
+  DEMO_ROW_KEYS.map((key) => ({ value: key, label: toColumnLabel(key) }));
 
 export type ConversionPreset = {
   value: string;
@@ -124,6 +125,22 @@ export function getConversionPreset(value: string): ConversionPreset {
 export function buildConversionExpression(presetValue: string, column: string): string {
   return getConversionPreset(presetValue).expression(column || "column");
 }
+
+// Default Typst template for the Document node — placeholders use the
+// dataset's own row keys, e.g. {{name}}, {{email}}.
+export const DEFAULT_DOCUMENT_TEMPLATE = [
+  "= Record {{id}}",
+  "",
+  "*Name:* {{name}} \\",
+  "*Email:* {{email}} \\",
+  "*Status:* {{status}} \\",
+  "*Role:* {{role}}",
+].join("\n");
+
+export const DOCUMENT_FORMATS: Array<{ value: string; label: string }> = [
+  { value: "pdf", label: "PDF" },
+  { value: "svg", label: "SVG" },
+];
 
 export const NODE_REGISTRY = {
   fileInput: {
@@ -287,6 +304,40 @@ export const NODE_REGISTRY = {
           CONVERSION_COLUMNS[0].value,
         ),
         placeholder: "e.g. UPPER(column)",
+        required: true,
+      },
+    ],
+  },
+  document: {
+    title: "Document",
+    icon: "document",
+    colorClassName: "border-indigo-500/30 bg-indigo-500/8 text-indigo-900",
+    handles: [{ type: "target", position: "left" }],
+    attributes: [
+      {
+        type: "text",
+        key: "label",
+        label: "Label",
+        defaultValue: "Document",
+        required: true,
+      },
+      {
+        type: "textarea",
+        key: "template",
+        label: "Template",
+        description:
+          "Typst markup. Use {{column}} placeholders — e.g. {{name}} — to insert each row's values.",
+        defaultValue: DEFAULT_DOCUMENT_TEMPLATE,
+        placeholder: "= {{name}}",
+        required: true,
+      },
+      {
+        type: "select",
+        key: "format",
+        label: "Format",
+        description: "Saved with the workflow — applied when generating documents.",
+        defaultValue: DOCUMENT_FORMATS[0].value,
+        options: DOCUMENT_FORMATS,
         required: true,
       },
     ],

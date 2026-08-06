@@ -7,15 +7,7 @@ import {
   TableCell,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-
-const data = [
-  { id: 1, name: "John Doe", email: "john@example.com", status: "Active", role: "Admin" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", status: "Active", role: "User" },
-  { id: 3, name: "Bob Johnson", email: "bob@example.com", status: "Inactive", role: "User" },
-  { id: 4, name: "Alice Brown", email: "alice@example.com", status: "Active", role: "Editor" },
-  { id: 5, name: "Charlie Wilson", email: "charlie@example.com", status: "Pending", role: "User" },
-  { id: 6, name: "Diana Lee", email: "diana@example.com", status: "Active", role: "Admin" },
-]
+import { DEMO_ROWS as data } from "@/lib/demo-data"
 
 export function DataTable() {
   return (

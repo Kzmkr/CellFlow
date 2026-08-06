@@ -4,6 +4,7 @@ import {
   ArrowRightLeftIcon,
   DatabaseIcon,
   FileInputIcon,
+  FileTextIcon,
   GitMergeIcon,
   WandSparklesIcon,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const iconMap = {
   database: DatabaseIcon,
   join: GitMergeIcon,
   convert: ArrowRightLeftIcon,
+  document: FileTextIcon,
 };
 
 export function ActionGrid() {

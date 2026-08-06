@@ -3,6 +3,7 @@ import {
   ArrowRightLeftIcon,
   DatabaseIcon,
   FileInputIcon,
+  FileTextIcon,
   GitMergeIcon,
   WandSparklesIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import {
   type NodeKind,
 } from "@/lib/node-registry";
 import { useNodeAttributeStore } from "@/lib/node-attribute-store";
+import { DEMO_ROWS } from "@/lib/demo-data";
 
 type RegistryNodeData = {
   kind: NodeKind;
@@ -33,6 +35,7 @@ const iconMap = {
   database: DatabaseIcon,
   join: GitMergeIcon,
   convert: ArrowRightLeftIcon,
+  document: FileTextIcon,
 };
 
 function toPosition(position: NodeHandlePosition): Position {
@@ -84,6 +87,11 @@ function getPreviewLine(kind: NodeKind, values: Record<string, string | number |
     const column = String(values.column ?? "");
     const preset = getConversionPreset(String(values.preset ?? ""));
     return column.length > 0 ? `${preset.label} · ${column}` : preset.label;
+  }
+
+  if (kind === "document") {
+    const format = String(values.format ?? "pdf").toUpperCase();
+    return `${format} · ${DEMO_ROWS.length} row${DEMO_ROWS.length === 1 ? "" : "s"}`;
   }
 
   return "";
