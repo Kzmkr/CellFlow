@@ -26,6 +26,7 @@ type AttributeState = {
     value: string | number | boolean,
   ) => void;
   getNodeErrors: (nodeId: string, kind: NodeKind) => Record<string, string>;
+  loadValues: (nodeValues: Record<string, NodeValues>) => void;
 };
 
 export type NodeAttributeStore = StoreApi<AttributeState>;
@@ -134,6 +135,9 @@ export function createNodeAttributeStore(): NodeAttributeStore {
         },
         {},
       );
+    },
+    loadValues: (nodeValues) => {
+      set({ nodeValues });
     },
   }));
 }

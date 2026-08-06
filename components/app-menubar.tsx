@@ -29,6 +29,9 @@ type AppMenubarProps = {
   onCut?: () => void;
   onCopy?: () => void;
   onPaste?: () => void;
+  onSave?: () => void;
+  onSaveAs?: () => void;
+  onOpen?: () => void;
   onTogglePanel: (
     panel: "nodes" | "properties" | "table",
     value: boolean,
@@ -45,6 +48,9 @@ export function AppMenubar({
   onCut,
   onCopy,
   onPaste,
+  onSave,
+  onSaveAs,
+  onOpen,
   onTogglePanel,
 }: AppMenubarProps) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -118,6 +124,20 @@ export function AppMenubar({
             onPaste?.();
             return;
           }
+          if (key === "s") {
+            e.preventDefault();
+            onSave?.();
+            return;
+          }
+          if (key === "o") {
+            e.preventDefault();
+            onOpen?.();
+            return;
+          }
+        } else if (key === "s") {
+          e.preventDefault();
+          onSaveAs?.();
+          return;
         }
       }
 
@@ -129,7 +149,7 @@ export function AppMenubar({
     document.addEventListener("keydown", onKeyDown, { capture: true });
     return () =>
       document.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [onNewTab, onUndo, onRedo, onCut, onCopy, onPaste]);
+  }, [onNewTab, onUndo, onRedo, onCut, onCopy, onPaste, onSave, onSaveAs, onOpen]);
 
   return (
     <div className="shrink-0 bg-muted/30">
@@ -140,6 +160,16 @@ export function AppMenubar({
             <MenubarContent>
               <MenubarItem onSelect={onNewTab}>
                 New Tab <MenubarShortcut>Ctrl+Shift+T</MenubarShortcut>
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={onOpen}>
+                Open… <MenubarShortcut>Ctrl+O</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem onSelect={onSave}>
+                Save <MenubarShortcut>Ctrl+S</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem onSelect={onSaveAs}>
+                Save As… <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onSelect={handleRun}>
